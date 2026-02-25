@@ -10,13 +10,14 @@ vi.mock('./engine/uqmWasmRuntime', () => ({
 
 vi.mock('sonner', () => ({
   toast: {
-    success: () => {},
-    error: () => {},
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe('useGameState', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     localStorage.clear();
     vi.resetModules();
   });
@@ -146,5 +147,60 @@ describe('useGameState', () => {
     expect(result.current.state.currentDialogue?.choices.length).toBeGreaterThan(0);
   });
 
-  
+  it('saveToSlot reports failure when persistence fails', async () => {
+    const { toast } = await import('sonner');
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      const err =
+        typeof DOMException !== 'undefined'
+          ? new DOMException('Quota exceeded', 'QuotaExceededError')
+          : Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' });
+      throw err;
+    });
+
+    const { useGameState } = await import('./useGameState');
+    const { result } = renderHook(() => useGameState());
+
+    await act(async () => {
+      result.current.startGame();
+    });
+
+    await act(async () => {
+      result.current.saveToSlot(1);
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to save Slot 1');
+  });
+
+  it('deleteSlot reports failure when persistence fails', async () => {
+    const { toast } = await import('sonner');
+
+    const { useGameState } = await import('./useGameState');
+    const { result } = renderHook(() => useGameState());
+
+    await act(async () => {
+      result.current.startGame();
+    });
+
+    await act(async () => {
+      result.current.saveToSlot(1);
+    });
+
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      const err =
+        typeof DOMException !== 'undefined'
+          ? new DOMException('Quota exceeded', 'QuotaExceededError')
+          : Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' });
+      throw err;
+    });
+
+    await act(async () => {
+      result.current.deleteSlot(1);
+    });
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to delete Slot 1');
+  });
 });

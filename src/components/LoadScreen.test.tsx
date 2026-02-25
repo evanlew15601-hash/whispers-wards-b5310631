@@ -2,20 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { SaveSlotInfo } from '@/game/storage';
 
-vi.mock('framer-motion', async () => {
-  const React = await import('react');
-
-  return {
-    motion: {
-      // Strip motion-only props to avoid passing invalid DOM attributes.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      div: React.forwardRef<HTMLDivElement, any>(({ initial, animate, transition, ...props }, ref) => (
-        <div ref={ref} {...props} />
-      )),
-    },
-  };
-});
-
 vi.mock('@/assets/hero-throne.jpg', () => ({ default: 'hero-throne.jpg' }));
 
 import LoadScreen from '@/components/LoadScreen';

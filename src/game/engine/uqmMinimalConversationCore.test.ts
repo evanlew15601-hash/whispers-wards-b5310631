@@ -61,7 +61,7 @@ describe('uqm minimal wasm conversation core', () => {
 
   beforeAll(async () => {
     exp = await loadUqmMinimalWasmExports();
-  });
+  }, 60_000);
 
   it('uses the expected packed ChoiceMeta (18 bytes) with little-endian loads', () => {
     writeGraph(exp);

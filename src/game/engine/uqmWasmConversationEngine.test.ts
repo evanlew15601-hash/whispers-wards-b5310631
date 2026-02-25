@@ -34,7 +34,7 @@ describe('uqmWasmConversationEngine', () => {
   beforeAll(async () => {
     const exports = await loadUqmMinimalWasmExports();
     uqmRuntime = makeRuntime(exports);
-  });
+  }, 60_000);
 
   it('produces same state transitions as tsConversationEngine for basic choices', () => {
     const wasmEngine = createUqmWasmConversationEngine(uqmRuntime);

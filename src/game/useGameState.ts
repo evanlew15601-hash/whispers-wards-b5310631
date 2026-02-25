@@ -65,9 +65,14 @@ export function useGameState() {
   }, [refreshSlots]);
 
   const saveToSlot = useCallback((slotId: number) => {
-    saveGameToSlot(slotId, state);
+    const ok = saveGameToSlot(slotId, state);
     refreshSlots();
-    toast.success(`Saved to Slot ${slotId}`);
+
+    if (ok) {
+      toast.success(`Saved to Slot ${slotId}`);
+    } else {
+      toast.error(`Failed to save Slot ${slotId}`);
+    }
   }, [state, refreshSlots]);
 
   const loadFromSlot = useCallback((slotId: number) => {
@@ -119,9 +124,14 @@ export function useGameState() {
   }, [refreshSlots]);
 
   const deleteSlot = useCallback((slotId: number) => {
-    deleteSaveSlot(slotId);
+    const ok = deleteSaveSlot(slotId);
     refreshSlots();
-    toast.success(`Deleted Slot ${slotId}`);
+
+    if (ok) {
+      toast.success(`Deleted Slot ${slotId}`);
+    } else {
+      toast.error(`Failed to delete Slot ${slotId}`);
+    }
   }, [refreshSlots]);
 
   const listSlots = useCallback(() => saveSlots, [saveSlots]);

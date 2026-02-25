@@ -1,32 +1,32 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { tsConversationEngine } from './engine/tsConversationEngine';
-import {
-  STORAGE_KEY_V1,
-  STORAGE_KEY_V2,
-  SAVE_SLOT_COUNT,
-  deleteSaveSlot,
-  listSaveSlots,
-  loadGameFromSlot,
-  saveGameToSlot,
-} from './storage';
 
 describe('game storage', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     localStorage.clear();
+    vi.resetModules();
   });
 
-  it('lists SAVE_SLOT_COUNT slots with stable ids', () => {
+  const importStorage = () => import('./storage');
+
+  it('lists SAVE_SLOT_COUNT slots with stable ids', async () => {
+    const { listSaveSlots, SAVE_SLOT_COUNT } = await importStorage();
+
     const slots = listSaveSlots();
     expect(slots).toHaveLength(SAVE_SLOT_COUNT);
     expect(slots.map(s => s.id)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(slots.every(s => s.meta === null)).toBe(true);
   });
 
-  it('saves, loads, and deletes a slot (v2)', () => {
+  it('saves, loads, and deletes a slot (v2)', async () => {
+    const { STORAGE_KEY_V2, deleteSaveSlot, listSaveSlots, loadGameFromSlot, saveGameToSlot } =
+      await importStorage();
+
     const state = tsConversationEngine.startNewGame();
 
-    saveGameToSlot(1, state);
+    expect(saveGameToSlot(1, state)).toBe(true);
 
     const raw = localStorage.getItem(STORAGE_KEY_V2);
     expect(raw).toBeTruthy();
@@ -47,17 +47,19 @@ describe('game storage', () => {
     expect(loaded?.turnNumber).toBe(state.turnNumber);
     expect(loaded?.currentDialogue?.id).toBe(state.currentDialogue?.id);
 
-    deleteSaveSlot(1);
+    expect(deleteSaveSlot(1)).toBe(true);
     expect(loadGameFromSlot(1)).toBeNull();
     expect(listSaveSlots()[0].meta).toBeNull();
   });
 
-  it('ignores invalid slot ids', () => {
+  it('ignores invalid slot ids', async () => {
+    const { deleteSaveSlot, listSaveSlots, loadGameFromSlot, saveGameToSlot } = await importStorage();
+
     const state = tsConversationEngine.startNewGame();
 
-    saveGameToSlot(0, state);
-    saveGameToSlot(-1, state);
-    saveGameToSlot(999, state);
+    expect(saveGameToSlot(0, state)).toBe(false);
+    expect(saveGameToSlot(-1, state)).toBe(false);
+    expect(saveGameToSlot(999, state)).toBe(false);
 
     expect(listSaveSlots().every(s => s.meta === null)).toBe(true);
 
@@ -65,16 +67,16 @@ describe('game storage', () => {
     expect(loadGameFromSlot(-1)).toBeNull();
     expect(loadGameFromSlot(999)).toBeNull();
 
-    deleteSaveSlot(0);
-    deleteSaveSlot(-1);
-    deleteSaveSlot(999);
+    expect(deleteSaveSlot(0)).toBe(false);
+    expect(deleteSaveSlot(-1)).toBe(false);
+    expect(deleteSaveSlot(999)).toBe(false);
 
     expect(listSaveSlots().every(s => s.meta === null)).toBe(true);
   });
 
-  
+  it('handles corrupted JSON in STORAGE_KEY_V2 without throwing', async () => {
+    const { STORAGE_KEY_V2, listSaveSlots, SAVE_SLOT_COUNT } = await importStorage();
 
-  it('handles corrupted JSON in STORAGE_KEY_V2 without throwing', () => {
     localStorage.setItem(STORAGE_KEY_V2, '{not json');
 
     const slots = listSaveSlots();
@@ -82,7 +84,9 @@ describe('game storage', () => {
     expect(slots.every(s => s.meta === null)).toBe(true);
   });
 
-  it('treats a schema-invalid slot as empty (v2)', () => {
+  it('treats a schema-invalid slot as empty (v2)', async () => {
+    const { STORAGE_KEY_V2, listSaveSlots } = await importStorage();
+
     localStorage.setItem(
       STORAGE_KEY_V2,
       JSON.stringify({
@@ -100,7 +104,9 @@ describe('game storage', () => {
     expect(slots[0].meta).toBeNull();
   });
 
-  it('migrates legacy unversioned key (v1) to STORAGE_KEY_V2', () => {
+  it('migrates legacy unversioned key (v1) to STORAGE_KEY_V2', async () => {
+    const { STORAGE_KEY_V2, listSaveSlots } = await importStorage();
+
     const state = tsConversationEngine.startNewGame();
 
     // Create a legacy store: { slots: { ... } } (no version field, full state).
@@ -134,7 +140,9 @@ describe('game storage', () => {
     expect(parsed.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
   });
 
-  it('migrates v1 key to v2 by extracting currentDialogue?.id', () => {
+  it('migrates v1 key to v2 by extracting currentDialogue?.id', async () => {
+    const { STORAGE_KEY_V1, STORAGE_KEY_V2, loadGameFromSlot } = await importStorage();
+
     const state = tsConversationEngine.startNewGame();
 
     localStorage.setItem(
@@ -168,5 +176,39 @@ describe('game storage', () => {
     };
     expect(parsed.version).toBe(2);
     expect(parsed.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
+  });
+
+  it('returns false when localStorage.setItem throws during save', async () => {
+    const { loadGameFromSlot, saveGameToSlot } = await importStorage();
+
+    const state = tsConversationEngine.startNewGame();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      const err =
+        typeof DOMException !== 'undefined'
+          ? new DOMException('Quota exceeded', 'QuotaExceededError')
+          : Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' });
+      throw err;
+    });
+
+    expect(saveGameToSlot(1, state)).toBe(false);
+    expect(loadGameFromSlot(1)).toBeNull();
+  });
+
+  it('returns false when localStorage.setItem throws during delete', async () => {
+    const { deleteSaveSlot, loadGameFromSlot, saveGameToSlot } = await importStorage();
+
+    const state = tsConversationEngine.startNewGame();
+    expect(saveGameToSlot(1, state)).toBe(true);
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      const err =
+        typeof DOMException !== 'undefined'
+          ? new DOMException('Quota exceeded', 'QuotaExceededError')
+          : Object.assign(new Error('Quota exceeded'), { name: 'QuotaExceededError' });
+      throw err;
+    });
+
+    expect(deleteSaveSlot(1)).toBe(false);
+    expect(loadGameFromSlot(1)).not.toBeNull();
   });
 });

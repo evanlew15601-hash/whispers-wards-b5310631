@@ -164,10 +164,70 @@ interface PersistedStoreV1 {
   slots: Record<string, PersistedSlotV1 | undefined>;
 }
 
-const isLocalStorageAvailable = () => {
+let localStorageProbeResult: boolean | null = null;
+
+const getLocalStorage = (): Storage | null => {
   try {
-    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+    if (typeof window === 'undefined') return null;
+    return window.localStorage ?? null;
   } catch {
+    return null;
+  }
+};
+
+const isQuotaExceededError = (err: unknown) => {
+  return (
+    typeof DOMException !== 'undefined' &&
+    err instanceof DOMException &&
+    err.name === 'QuotaExceededError'
+  );
+};
+
+const probeLocalStorage = (): boolean => {
+  if (localStorageProbeResult !== null) return localStorageProbeResult;
+
+  const storage = getLocalStorage();
+  if (!storage) {
+    localStorageProbeResult = false;
+    return false;
+  }
+
+  try {
+    const probeKey = `${STORAGE_KEY_PREFIX}:probe`;
+    storage.setItem(probeKey, '1');
+    storage.removeItem(probeKey);
+    localStorageProbeResult = true;
+  } catch (err) {
+    // If the quota is exceeded, storage is still accessible; individual writes may fail.
+    localStorageProbeResult = isQuotaExceededError(err);
+  }
+
+  return localStorageProbeResult;
+};
+
+const safeGetItem = (key: string): string | null => {
+  const storage = getLocalStorage();
+  if (!storage) return null;
+
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeSetItem = (key: string, value: string): boolean => {
+  const storage = getLocalStorage();
+  if (!storage) return false;
+
+  // Cached probe guards against environments where localStorage exists but is blocked.
+  if (!probeLocalStorage()) return false;
+
+  try {
+    storage.setItem(key, value);
+    return true;
+  } catch (err) {
+    if (!isQuotaExceededError(err)) localStorageProbeResult = false;
     return false;
   }
 };
@@ -263,31 +323,29 @@ const migrateStoreV1ToV2 = (store: PersistedStoreV1): PersistedStoreV2 => {
 };
 
 const readStoreV2 = (): PersistedStoreV2 => {
-  if (!isLocalStorageAvailable()) return createEmptyStoreV2();
-
-  const existingV2 = window.localStorage.getItem(STORAGE_KEY_V2);
+  const existingV2 = safeGetItem(STORAGE_KEY_V2);
   if (existingV2) {
     const store = parseStoreV2(existingV2);
     if (store) return store;
   }
 
   // v2 missing/invalid: attempt best-effort migration from v1/unversioned.
-  const existingV1 = window.localStorage.getItem(STORAGE_KEY_V1);
+  const existingV1 = safeGetItem(STORAGE_KEY_V1);
   if (existingV1) {
     const storeV1 = parseStoreV1(existingV1);
     if (storeV1) {
       const migrated = migrateStoreV1ToV2(storeV1);
-      window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(migrated));
+      writeStoreV2(migrated);
       return migrated;
     }
   }
 
-  const legacy = window.localStorage.getItem(STORAGE_KEY_PREFIX);
+  const legacy = safeGetItem(STORAGE_KEY_PREFIX);
   if (legacy) {
     const storeV1 = parseStoreV1(legacy);
     if (storeV1) {
       const migrated = migrateStoreV1ToV2(storeV1);
-      window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(migrated));
+      writeStoreV2(migrated);
       return migrated;
     }
   }
@@ -295,9 +353,8 @@ const readStoreV2 = (): PersistedStoreV2 => {
   return createEmptyStoreV2();
 };
 
-const writeStoreV2 = (store: PersistedStoreV2) => {
-  if (!isLocalStorageAvailable()) return;
-  window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(store));
+const writeStoreV2 = (store: PersistedStoreV2): boolean => {
+  return safeSetItem(STORAGE_KEY_V2, JSON.stringify(store));
 };
 
 const createMeta = (state: GameState): SaveSlotMeta => ({
@@ -330,9 +387,12 @@ export const listSaveSlots = (): SaveSlotInfo[] => {
   });
 };
 
-export const saveGameToSlot = (slotId: number, state: GameState): void => {
+export const saveGameToSlot = (slotId: number, state: GameState): boolean => {
   const id = normalizeSlotId(slotId);
-  if (!id) return;
+  if (!id) return false;
+
+  // If storage is blocked entirely, report failure rather than silently dropping saves.
+  if (!probeLocalStorage()) return false;
 
   const store = readStoreV2();
   store.slots[String(id)] = {
@@ -350,7 +410,8 @@ export const saveGameToSlot = (slotId: number, state: GameState): void => {
       currentDialogueId: state.currentDialogue?.id ?? null,
     },
   };
-  writeStoreV2(store);
+
+  return writeStoreV2(store);
 };
 
 export const loadGameFromSlot = (slotId: number): LoadableGameState | null => {
@@ -369,11 +430,15 @@ export const loadGameFromSlot = (slotId: number): LoadableGameState | null => {
   };
 };
 
-export const deleteSaveSlot = (slotId: number): void => {
+export const deleteSaveSlot = (slotId: number): boolean => {
   const id = normalizeSlotId(slotId);
-  if (!id) return;
+  if (!id) return false;
+
+  if (!probeLocalStorage()) return false;
 
   const store = readStoreV2();
+  if (!store.slots[String(id)]) return true;
+
   delete store.slots[String(id)];
-  writeStoreV2(store);
+  return writeStoreV2(store);
 };

@@ -26,6 +26,24 @@ function sleepSync(ms: number) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
+function waitForFileReady(filePath: string, timeoutMs = 5000): boolean {
+  const start = Date.now();
+  let lastSize: number | null = null;
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.size > 0 && lastSize != null && stat.size === lastSize) return true;
+      lastSize = stat.size;
+    } catch {
+      // ignore
+    }
+    sleepSync(25);
+  }
+
+  return fs.existsSync(filePath);
+}
+
 export function ensureUqmMinimalWasmBuilt(): void {
   const g = globalThis as unknown as Record<string, unknown>;
   if (g[BUILT_KEY]) return;
@@ -35,6 +53,7 @@ export function ensureUqmMinimalWasmBuilt(): void {
 
   // If a previous step (e.g. `pretest`) already built the artifact, skip spawning.
   if (fs.existsSync(wasmPath)) {
+    waitForFileReady(wasmPath);
     g[BUILT_KEY] = true;
     return;
   }
@@ -42,11 +61,13 @@ export function ensureUqmMinimalWasmBuilt(): void {
   let lockFd: number | null = null;
   try {
     lockFd = fs.openSync(lockPath, 'wx');
-  } catch {
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+
     // Another worker/process is building. Wait for the artifact to appear.
     // 60s max to avoid flakiness on slow CI.
     for (let i = 0; i < 2400; i++) {
-      if (fs.existsSync(wasmPath)) {
+      if (fs.existsSync(wasmPath) && waitForFileReady(wasmPath)) {
         g[BUILT_KEY] = true;
         return;
       }
@@ -68,6 +89,7 @@ export function ensureUqmMinimalWasmBuilt(): void {
       throw new Error(`Failed to build UQM minimal wasm (exit ${res.status}). Output:\n${out}`);
     }
 
+    waitForFileReady(wasmPath);
     g[BUILT_KEY] = true;
   } finally {
     if (lockFd != null) {
