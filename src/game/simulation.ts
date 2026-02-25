@@ -17,6 +17,10 @@ export interface SimulateWorldTurnResult {
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
+// A very negative baseline ensures the first few turns are never considered "on cooldown"
+// for offers/embargoes.
+const AI_MEMORY_TURN_BASELINE = -999;
+
 const cloneWorld = (world: WorldState): WorldState => ({
   regions: Object.fromEntries(Object.entries(world.regions).map(([k, v]) => [k, { ...v }])) as WorldState['regions'],
   tradeRoutes: Object.fromEntries(Object.entries(world.tradeRoutes).map(([k, v]) => [k, { ...v }])) as WorldState['tradeRoutes'],
@@ -142,8 +146,8 @@ export const createInitialWorldState = (factions: Faction[]): WorldState => {
 
   for (const id of factionIds) {
     // Use a very negative baseline so the first few turns are never considered "on cooldown".
-    aiMemory.lastOfferTurn[id] = -999;
-    aiMemory.lastEmbargoTurn[id] = -999;
+    aiMemory.lastOfferTurn[id] = AI_MEMORY_TURN_BASELINE;
+    aiMemory.lastEmbargoTurn[id] = AI_MEMORY_TURN_BASELINE;
   }
 
   return {
@@ -199,8 +203,8 @@ export const simulateWorldTurn = (args: SimulateWorldTurnArgs): SimulateWorldTur
   for (const id of factionIds) {
     // Backward-compat: older saves may have missing AI memory. Use a very negative baseline
     // so early turns are never considered "on cooldown".
-    if (nextWorld.aiMemory.lastOfferTurn[id] == null) nextWorld.aiMemory.lastOfferTurn[id] = -999;
-    if (nextWorld.aiMemory.lastEmbargoTurn[id] == null) nextWorld.aiMemory.lastEmbargoTurn[id] = -999;
+    if (nextWorld.aiMemory.lastOfferTurn[id] == null) nextWorld.aiMemory.lastOfferTurn[id] = AI_MEMORY_TURN_BASELINE;
+    if (nextWorld.aiMemory.lastEmbargoTurn[id] == null) nextWorld.aiMemory.lastEmbargoTurn[id] = AI_MEMORY_TURN_BASELINE;
   }
 
   // Resolve time-based trade route statuses.

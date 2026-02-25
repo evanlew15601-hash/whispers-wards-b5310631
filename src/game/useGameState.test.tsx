@@ -8,6 +8,13 @@ vi.mock('./engine/uqmWasmRuntime', () => ({
   loadUqmWasmRuntime: () => Promise.reject(new Error('no wasm')),
 }));
 
+vi.mock('sonner', () => ({
+  toast: {
+    success: () => {},
+    error: () => {},
+  },
+}));
+
 describe('useGameState', () => {
   beforeEach(() => {
     localStorage.clear();

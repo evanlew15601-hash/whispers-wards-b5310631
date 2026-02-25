@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { tsConversationEngine } from './engine/tsConversationEngine';
 import {
   STORAGE_KEY_V1,
+  STORAGE_KEY_V2,
   SAVE_SLOT_COUNT,
   deleteSaveSlot,
   listSaveSlots,
@@ -22,10 +23,21 @@ describe('game storage', () => {
     expect(slots.every(s => s.meta === null)).toBe(true);
   });
 
-  it('saves, loads, and deletes a slot', () => {
+  it('saves, loads, and deletes a slot (v2)', () => {
     const state = tsConversationEngine.startNewGame();
 
     saveGameToSlot(1, state);
+
+    const raw = localStorage.getItem(STORAGE_KEY_V2);
+    expect(raw).toBeTruthy();
+
+    const persisted = JSON.parse(raw as string) as {
+      version: number;
+      slots: Record<string, { state?: { currentDialogueId?: unknown } }>;
+    };
+
+    expect(persisted.version).toBe(2);
+    expect(persisted.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
 
     const slots = listSaveSlots();
     expect(slots[0].meta?.turnNumber).toBe(state.turnNumber);
@@ -60,32 +72,99 @@ describe('game storage', () => {
     expect(listSaveSlots().every(s => s.meta === null)).toBe(true);
   });
 
-  it('handles corrupted JSON in STORAGE_KEY_V1 without throwing', () => {
-    localStorage.setItem(STORAGE_KEY_V1, '{not json');
+  it('handles corrupted JSON in STORAGE_KEY_V2 without throwing', () => {
+    localStorage.setItem(STORAGE_KEY_V2, '{not json');
 
     const slots = listSaveSlots();
     expect(slots).toHaveLength(SAVE_SLOT_COUNT);
     expect(slots.every(s => s.meta === null)).toBe(true);
   });
 
-  it('migrates legacy unversioned key to STORAGE_KEY_V1', () => {
+  it('treats a schema-invalid slot as empty (v2)', () => {
+    localStorage.setItem(
+      STORAGE_KEY_V2,
+      JSON.stringify({
+        version: 2,
+        slots: {
+          '1': {
+            meta: 'not meta',
+            state: { currentDialogueId: null },
+          },
+        },
+      }),
+    );
+
+    const slots = listSaveSlots();
+    expect(slots[0].meta).toBeNull();
+  });
+
+  it('migrates legacy unversioned key (v1) to STORAGE_KEY_V2', () => {
     const state = tsConversationEngine.startNewGame();
-    saveGameToSlot(1, state);
 
-    const v1Raw = localStorage.getItem(STORAGE_KEY_V1);
-    expect(v1Raw).toBeTruthy();
-
-    const parsed = JSON.parse(v1Raw as string) as Record<string, unknown>;
-    // Simulate a legacy store: { slots: { ... } } (no version field).
-    delete (parsed as { version?: unknown }).version;
-
-    localStorage.removeItem(STORAGE_KEY_V1);
-    localStorage.setItem('crown-concord:save-slots', JSON.stringify(parsed));
+    // Create a legacy store: { slots: { ... } } (no version field, full state).
+    localStorage.setItem(
+      'crown-concord:save-slots',
+      JSON.stringify({
+        slots: {
+          '1': {
+            meta: {
+              savedAt: new Date('2020-01-01T00:00:00.000Z').toISOString(),
+              turnNumber: state.turnNumber,
+              factions: state.factions.map(f => ({ id: f.id, name: f.name, reputation: f.reputation })),
+            },
+            state,
+          },
+        },
+      }),
+    );
 
     const slots = listSaveSlots();
     expect(slots[0].meta?.turnNumber).toBe(state.turnNumber);
 
-    const migrated = localStorage.getItem(STORAGE_KEY_V1);
+    const migrated = localStorage.getItem(STORAGE_KEY_V2);
     expect(migrated).toBeTruthy();
+
+    const parsed = JSON.parse(migrated as string) as {
+      version: number;
+      slots: Record<string, { state?: { currentDialogueId?: unknown } }>;
+    };
+    expect(parsed.version).toBe(2);
+    expect(parsed.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
+  });
+
+  it('migrates v1 key to v2 by extracting currentDialogue?.id', () => {
+    const state = tsConversationEngine.startNewGame();
+
+    localStorage.setItem(
+      STORAGE_KEY_V1,
+      JSON.stringify({
+        version: 1,
+        slots: {
+          '1': {
+            meta: {
+              savedAt: new Date('2020-01-01T00:00:00.000Z').toISOString(),
+              turnNumber: state.turnNumber,
+              factions: state.factions.map(f => ({ id: f.id, name: f.name, reputation: f.reputation })),
+            },
+            state,
+          },
+        },
+      }),
+    );
+
+    expect(localStorage.getItem(STORAGE_KEY_V2)).toBeNull();
+
+    const loaded = loadGameFromSlot(1);
+    expect(loaded?.currentDialogue?.id).toBe(state.currentDialogue?.id);
+
+    const migrated = localStorage.getItem(STORAGE_KEY_V2);
+    expect(migrated).toBeTruthy();
+
+    const parsed = JSON.parse(migrated as string) as {
+      version: number;
+      slots: Record<string, { state?: { currentDialogueId?: unknown } }>;
+    };
+    expect(parsed.version).toBe(2);
+    expect(parsed.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
   });
 });

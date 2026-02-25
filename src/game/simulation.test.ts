@@ -50,4 +50,42 @@ describe('world simulation', () => {
 
     expect(result.rngSeed).not.toBe(42);
   });
+
+  it('does not put offer/embargo actions on cooldown on turn 1 just because aiMemory was initialized', () => {
+    // Regression test: initializing lastOfferTurn/lastEmbargoTurn to 0 makes cooldown checks
+    // treat turn 1/2 as "recent" and can suppress offers/embargoes early-game.
+
+    const factions = [
+      initialFactions.find(f => f.id === 'ember-throne')!,
+      initialFactions.find(f => f.id === 'iron-pact')!,
+    ];
+
+    const makeWorld = (tension: number) => {
+      const world = createInitialWorldState(factions);
+      // Remove unrelated RNG consumption from contested-region cooling.
+      world.regions.greenmarch = { ...world.regions.greenmarch, contested: false };
+      world.tensions['ember-throne']['iron-pact'] = tension;
+      world.tensions['iron-pact']['ember-throne'] = tension;
+      return world;
+    };
+
+    const findSeed = (make: () => ReturnType<typeof makeWorld>, predicate: (log: string[]) => boolean) => {
+      for (let seed = 1; seed <= 2000; seed++) {
+        const result = simulateWorldTurn({
+          world: make(),
+          factions,
+          turnNumber: 1,
+          rngSeed: seed,
+        });
+        if (predicate(result.logEntries)) return seed;
+      }
+      return null;
+    };
+
+    const offerSeed = findSeed(() => makeWorld(0), log => log.some(l => l.includes('olive-branch offer')));
+    expect(offerSeed).not.toBeNull();
+
+    const embargoSeed = findSeed(() => makeWorld(55), log => log.some(l => l.includes('imposes an embargo')));
+    expect(embargoSeed).not.toBeNull();
+  });
 });

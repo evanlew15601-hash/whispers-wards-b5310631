@@ -136,6 +136,8 @@ function applyChoiceUsingWasm(
   const localIdx = prev.currentDialogue.choices.findIndex(c => c.id === choice.id);
   if (localIdx < 0) return null;
 
+  const overrideLocked = prev.knownSecrets.includes('override');
+
   const rep0 = prev.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
   const rep1 = prev.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
   const rep2 = prev.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
@@ -145,7 +147,7 @@ function applyChoiceUsingWasm(
   const exp = uqm.exports;
   exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secrets);
 
-  if (exp.uqm_conv_choice_is_locked(localIdx)) {
+  if (exp.uqm_conv_choice_is_locked(localIdx) && !overrideLocked) {
     // Enforce locks at the engine level too.
     return prev;
   }
@@ -211,6 +213,8 @@ function applyChoiceUsingWasm(
     rngSeed: prev.rngSeed,
   });
 
+  // `expiresOnTurn` is inclusive: the encounter expires only after turn N resolves
+  // (i.e. it is still retained when `expiresOnTurn === nextTurnNumber`).
   const existingEncounter =
     prev.pendingEncounter && prev.pendingEncounter.expiresOnTurn >= nextTurnNumber ? prev.pendingEncounter : null;
 

@@ -6,6 +6,17 @@ import FactionPanel from '@/components/FactionPanel';
 import InfoPanel from '@/components/InfoPanel';
 import SaveLoadDialog from '@/components/SaveLoadDialog';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface GameScreenProps {
   state: GameState;
@@ -53,13 +64,50 @@ const GameScreen = ({
             onDelete={deleteSlot}
           />
 
-          <Button size="sm" variant="ghost" onClick={exitToTitle}>
-            Title
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost">
+                Exit to Title
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Exit to Title</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Return to the title screen. Make sure you have saved if you want to keep your progress.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={exitToTitle}>Exit to Title</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-          <Button size="sm" variant="ghost" onClick={resetGame} className="text-destructive hover:text-destructive">
-            Restart
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+                Restart Campaign
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Restart Campaign</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will reset your current campaign. Make sure you have saved if you want to keep your progress.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={resetGame}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Restart Campaign
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </header>
 

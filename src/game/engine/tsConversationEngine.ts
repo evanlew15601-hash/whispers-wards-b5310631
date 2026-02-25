@@ -149,6 +149,8 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
     rngSeed: prev.rngSeed,
   });
 
+  // `expiresOnTurn` is inclusive: the encounter expires only after turn N resolves
+  // (i.e. it is still retained when `expiresOnTurn === nextTurnNumber`).
   const existingEncounter =
     prev.pendingEncounter && prev.pendingEncounter.expiresOnTurn >= nextTurnNumber ? prev.pendingEncounter : null;
 

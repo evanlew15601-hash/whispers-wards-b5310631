@@ -4,6 +4,7 @@ import { createUqmWasmConversationEngine } from './uqmWasmConversationEngine';
 import { tsConversationEngine } from './tsConversationEngine';
 import type { UqmWasmRuntime } from './uqmWasmRuntime';
 import { loadUqmMinimalWasmExports } from '@/test/uqmWasmTestUtils';
+import { dialogueTree } from '../data';
 
 function makeRuntime(exports: Awaited<ReturnType<typeof loadUqmMinimalWasmExports>>): UqmWasmRuntime {
   const encoder = new TextEncoder();
@@ -75,5 +76,43 @@ describe('uqmWasmConversationEngine', () => {
     expect(nextWasm2.knownSecrets).toEqual(nextTs2.knownSecrets);
     expect(nextWasm2.world).toEqual(nextTs2.world);
     expect(nextWasm2.rngSeed).toBe(nextTs2.rngSeed);
+  });
+
+  it('matches tsConversationEngine lock bypass when knownSecrets includes override', () => {
+    const wasmEngine = createUqmWasmConversationEngine(uqmRuntime);
+
+    const start = tsConversationEngine.startNewGame();
+    const seeded = {
+      ...start,
+      currentDialogue: dialogueTree['summit-start'],
+      rngSeed: 123456789,
+    };
+
+    const lockedChoice = seeded.currentDialogue!.choices.find(c => c.id === 'summit-iron');
+    if (!lockedChoice) throw new Error('Expected summit-iron choice');
+
+    const nextTsLocked = tsConversationEngine.applyChoice(seeded, lockedChoice);
+    const nextWasmLocked = wasmEngine.applyChoice(seeded, lockedChoice);
+
+    expect(nextTsLocked).toBe(seeded);
+    expect(nextWasmLocked).toBe(seeded);
+
+    const withOverride = { ...seeded, knownSecrets: ['override'] };
+
+    const nextTsOverride = tsConversationEngine.applyChoice(withOverride, lockedChoice);
+    const nextWasmOverride = wasmEngine.applyChoice(withOverride, lockedChoice);
+
+    expect(nextTsOverride.currentDialogue?.id).toBe('ending-iron-march');
+    expect(nextWasmOverride.currentDialogue?.id).toBe('ending-iron-march');
+
+    expect(nextWasmOverride.turnNumber).toBe(nextTsOverride.turnNumber);
+    expect(nextWasmOverride.rngSeed).toBe(nextTsOverride.rngSeed);
+    expect(nextWasmOverride.world).toEqual(nextTsOverride.world);
+
+    const repTs = Object.fromEntries(nextTsOverride.factions.map(f => [f.id, f.reputation] as const));
+    const repWasm = Object.fromEntries(nextWasmOverride.factions.map(f => [f.id, f.reputation] as const));
+    expect(repWasm).toEqual(repTs);
+
+    expect(nextWasmOverride.knownSecrets).toEqual(nextTsOverride.knownSecrets);
   });
 });

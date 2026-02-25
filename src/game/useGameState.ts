@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { GameState, DialogueChoice } from './types';
 import { dialogueTree } from './data';
 import {
@@ -66,15 +67,31 @@ export function useGameState() {
   const saveToSlot = useCallback((slotId: number) => {
     saveGameToSlot(slotId, state);
     refreshSlots();
+    toast.success(`Saved to Slot ${slotId}`);
   }, [state, refreshSlots]);
 
   const loadFromSlot = useCallback((slotId: number) => {
     const loaded = loadGameFromSlot(slotId);
-    if (!loaded) return;
+    if (!loaded) {
+      toast.error(`Slot ${slotId} is empty.`);
+      return;
+    }
 
     // Back/forward compatibility: hydrate missing fields and refresh dialogue from the current tree when possible.
     const base = engineRef.current.createInitialState();
-    const loadedAny = loaded as unknown as Partial<GameState> & { currentDialogue?: { id?: string } | null };
+    const loadedAny = loaded as unknown as Partial<GameState> & {
+      currentDialogue?: { id?: string } | null;
+      currentDialogueId?: string | null;
+    };
+
+    const pendingEncounter = loadedAny.pendingEncounter ?? null;
+
+    const loadedDialogueId =
+      typeof loadedAny.currentDialogueId === 'string'
+        ? loadedAny.currentDialogueId
+        : loadedAny.currentDialogue && typeof loadedAny.currentDialogue === 'object'
+          ? loadedAny.currentDialogue.id ?? null
+          : null;
 
     const hydrated: GameState = {
       ...base,
@@ -86,22 +103,25 @@ export function useGameState() {
       turnNumber: typeof loadedAny.turnNumber === 'number' ? loadedAny.turnNumber : base.turnNumber,
       rngSeed: typeof loadedAny.rngSeed === 'number' ? loadedAny.rngSeed : base.rngSeed,
       world: loadedAny.world ?? base.world,
-      pendingEncounter: loadedAny.pendingEncounter ?? null,
-      currentDialogue:
-        loadedAny.currentDialogue && typeof loadedAny.currentDialogue === 'object' && loadedAny.currentDialogue.id
-          ? dialogueTree[loadedAny.currentDialogue.id] ?? (loadedAny.currentDialogue as GameState['currentDialogue'])
-          : (loadedAny.currentDialogue as GameState['currentDialogue']) ?? null,
+      pendingEncounter,
+      currentDialogue: loadedDialogueId
+        ? loadedDialogueId.startsWith('encounter:') && pendingEncounter
+          ? buildEncounterDialogueNode(pendingEncounter)
+          : dialogueTree[loadedDialogueId] ?? (loadedAny.currentDialogue as GameState['currentDialogue'])
+        : (loadedAny.currentDialogue as GameState['currentDialogue']) ?? null,
       // Always resume gameplay after loading a save.
       currentScene: 'game',
     };
 
     setState(hydrated);
     refreshSlots();
+    toast.success(`Loaded Slot ${slotId}`);
   }, [refreshSlots]);
 
   const deleteSlot = useCallback((slotId: number) => {
     deleteSaveSlot(slotId);
     refreshSlots();
+    toast.success(`Deleted Slot ${slotId}`);
   }, [refreshSlots]);
 
   const listSlots = useCallback(() => saveSlots, [saveSlots]);
