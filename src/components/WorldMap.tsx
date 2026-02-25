@@ -35,20 +35,16 @@ const inferRouteEndpoints = (
   route: TradeRouteState,
   regions: RegionState[],
 ): [string, string] | null => {
-  const anyRoute = route as unknown as {
-    fromRegionId?: string;
-    toRegionId?: string;
-    from?: string;
-    to?: string;
-  };
-
   const regionIds = new Set(regions.map(r => r.id));
 
-  const directFrom = anyRoute.fromRegionId ?? anyRoute.from;
-  const directTo = anyRoute.toRegionId ?? anyRoute.to;
+  if (route.fromRegionId && route.toRegionId && regionIds.has(route.fromRegionId) && regionIds.has(route.toRegionId)) {
+    return [route.fromRegionId, route.toRegionId];
+  }
 
-  if (directFrom && directTo && regionIds.has(directFrom) && regionIds.has(directTo)) {
-    return [directFrom, directTo];
+  // Legacy save fallback: some older route objects used `from`/`to`.
+  const legacy = route as TradeRouteState & { from?: string; to?: string };
+  if (legacy.from && legacy.to && regionIds.has(legacy.from) && regionIds.has(legacy.to)) {
+    return [legacy.from, legacy.to];
   }
 
   if (route.affectedFactions.length >= 2) {

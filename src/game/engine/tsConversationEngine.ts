@@ -82,7 +82,7 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
   });
 
   const existingEncounter =
-    prev.pendingEncounter && prev.pendingEncounter.expiresOnTurn > nextTurnNumber ? prev.pendingEncounter : null;
+    prev.pendingEncounter && prev.pendingEncounter.expiresOnTurn >= nextTurnNumber ? prev.pendingEncounter : null;
 
   const nextEncounter = existingEncounter ?? sim.pendingEncounter;
 

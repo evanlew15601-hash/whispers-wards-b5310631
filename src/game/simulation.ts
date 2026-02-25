@@ -141,8 +141,9 @@ export const createInitialWorldState = (factions: Faction[]): WorldState => {
   };
 
   for (const id of factionIds) {
-    aiMemory.lastOfferTurn[id] = 0;
-    aiMemory.lastEmbargoTurn[id] = 0;
+    // Use a very negative baseline so the first few turns are never considered "on cooldown".
+    aiMemory.lastOfferTurn[id] = -999;
+    aiMemory.lastEmbargoTurn[id] = -999;
   }
 
   return {
@@ -159,18 +160,24 @@ export const createInitialWorldState = (factions: Faction[]): WorldState => {
         name: 'Ash Road',
         status: 'open',
         affectedFactions: ['ember-throne', 'iron-pact'],
+        fromRegionId: 'embercoast',
+        toRegionId: 'ironhold',
       },
       rootway: {
         id: 'rootway',
         name: 'Rootway Caravans',
         status: 'open',
         affectedFactions: ['verdant-court', 'ember-throne'],
+        fromRegionId: 'verdantwilds',
+        toRegionId: 'embercoast',
       },
       passcourier: {
         id: 'passcourier',
         name: 'Pass Couriers',
         status: 'open',
         affectedFactions: ['iron-pact', 'verdant-court'],
+        fromRegionId: 'ironhold',
+        toRegionId: 'verdantwilds',
       },
     },
     tensions,
@@ -190,8 +197,10 @@ export const simulateWorldTurn = (args: SimulateWorldTurnArgs): SimulateWorldTur
   ensureTensionMatrix(nextWorld, factionIds);
 
   for (const id of factionIds) {
-    if (nextWorld.aiMemory.lastOfferTurn[id] == null) nextWorld.aiMemory.lastOfferTurn[id] = 0;
-    if (nextWorld.aiMemory.lastEmbargoTurn[id] == null) nextWorld.aiMemory.lastEmbargoTurn[id] = 0;
+    // Backward-compat: older saves may have missing AI memory. Use a very negative baseline
+    // so early turns are never considered "on cooldown".
+    if (nextWorld.aiMemory.lastOfferTurn[id] == null) nextWorld.aiMemory.lastOfferTurn[id] = -999;
+    if (nextWorld.aiMemory.lastEmbargoTurn[id] == null) nextWorld.aiMemory.lastEmbargoTurn[id] = -999;
   }
 
   // Resolve time-based trade route statuses.

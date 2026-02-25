@@ -47,6 +47,12 @@ export interface TradeRouteState {
   name: string;
   status: TradeRouteStatus;
   affectedFactions: string[];
+  /**
+   * Explicit endpoints for rendering and future route logic.
+   * Optional for backward compatibility with older saves.
+   */
+  fromRegionId?: string;
+  toRegionId?: string;
   embargoedBy?: string;
   untilTurn?: number;
 }

@@ -21,23 +21,68 @@ export type UqmMinimalNormalizedExports = {
 
 const BUILT_KEY = '__uqm_minimal_wasm_built__';
 
+function sleepSync(ms: number) {
+  // Atomics.wait is the simplest portable sync sleep in Node.
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
 export function ensureUqmMinimalWasmBuilt(): void {
   const g = globalThis as unknown as Record<string, unknown>;
   if (g[BUILT_KEY]) return;
 
-  const res = spawnSync(process.execPath, ['scripts/build-uqm-minimal-wasm.mjs'], {
-    cwd: process.cwd(),
-    stdio: 'pipe',
-    encoding: 'utf8',
-    env: process.env,
-  });
+  const wasmPath = path.join(process.cwd(), 'public', 'wasm', 'uqm_minimal.wasm');
+  const lockPath = `${wasmPath}.lock`;
 
-  if (res.status !== 0) {
-    const out = [res.stdout, res.stderr].filter(Boolean).join('\n');
-    throw new Error(`Failed to build UQM minimal wasm (exit ${res.status}). Output:\n${out}`);
+  // If a previous step (e.g. `pretest`) already built the artifact, skip spawning.
+  if (fs.existsSync(wasmPath)) {
+    g[BUILT_KEY] = true;
+    return;
   }
 
-  g[BUILT_KEY] = true;
+  let lockFd: number | null = null;
+  try {
+    lockFd = fs.openSync(lockPath, 'wx');
+  } catch {
+    // Another worker/process is building. Wait for the artifact to appear.
+    // 60s max to avoid flakiness on slow CI.
+    for (let i = 0; i < 2400; i++) {
+      if (fs.existsSync(wasmPath)) {
+        g[BUILT_KEY] = true;
+        return;
+      }
+      sleepSync(25);
+    }
+    // Fall through and attempt to build anyway (lock holder may have crashed).
+  }
+
+  try {
+    const res = spawnSync(process.execPath, ['scripts/build-uqm-minimal-wasm.mjs'], {
+      cwd: process.cwd(),
+      stdio: 'pipe',
+      encoding: 'utf8',
+      env: process.env,
+    });
+
+    if (res.status !== 0) {
+      const out = [res.stdout, res.stderr].filter(Boolean).join('\n');
+      throw new Error(`Failed to build UQM minimal wasm (exit ${res.status}). Output:\n${out}`);
+    }
+
+    g[BUILT_KEY] = true;
+  } finally {
+    if (lockFd != null) {
+      try {
+        fs.closeSync(lockFd);
+      } catch {
+        // ignore
+      }
+      try {
+        fs.unlinkSync(lockPath);
+      } catch {
+        // ignore
+      }
+    }
+  }
 }
 
 function getFunction<T extends Function>(raw: Record<string, unknown>, names: string[]): T {
