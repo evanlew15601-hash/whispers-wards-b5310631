@@ -1,10 +1,11 @@
-import { DialogueNode, DialogueChoice } from '@/game/types';
+import { DialogueNode, DialogueChoice, Faction } from '@/game/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface DialoguePanelProps {
   node: DialogueNode;
   onChoice: (choice: DialogueChoice) => void;
   knownSecrets: string[];
+  factions: Faction[];
 }
 
 const factionLabelColors: Record<string, string> = {
@@ -13,7 +14,7 @@ const factionLabelColors: Record<string, string> = {
   'ember-throne': 'faction-ember',
 };
 
-const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => {
+const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanelProps) => {
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -55,8 +56,14 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
             Your Response
           </span>
           {node.choices.map((choice, i) => {
-            const locked = choice.requiredReputation &&
-              !knownSecrets.includes('override');
+            const repReq = choice.requiredReputation;
+            const repOk = repReq
+              ? (factions.find(f => f.id === repReq.factionId)?.reputation ?? -1000) >= repReq.min
+              : true;
+
+            // Future-proofing: allow certain secrets to override locks.
+            const override = knownSecrets.includes('override');
+            const locked = Boolean(repReq) && !repOk && !override;
 
             return (
               <motion.button
@@ -76,6 +83,11 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
 
                 {/* Effect indicators */}
                 <div className="mt-2 flex flex-wrap gap-2">
+                  {repReq && locked && (
+                    <span className="text-[10px] font-display tracking-wider text-muted-foreground">
+                      🔒 requires {repReq.factionId.replace('-', ' ')} ≥ {repReq.min}
+                    </span>
+                  )}
                   {choice.effects.map(effect => (
                     <span
                       key={effect.factionId}

@@ -1,16 +1,33 @@
 import { motion } from 'framer-motion';
 import { GameState, DialogueChoice } from '@/game/types';
+import { SaveSlotInfo } from '@/game/storage';
 import DialoguePanel from '@/components/DialoguePanel';
 import FactionPanel from '@/components/FactionPanel';
 import InfoPanel from '@/components/InfoPanel';
+import SaveLoadDialog from '@/components/SaveLoadDialog';
+import { Button } from '@/components/ui/button';
 
 interface GameScreenProps {
   state: GameState;
   makeChoice: (choice: DialogueChoice) => void;
   resetGame: () => void;
+  saveSlots: SaveSlotInfo[];
+  saveToSlot: (slotId: number) => void;
+  loadFromSlot: (slotId: number) => void;
+  deleteSlot: (slotId: number) => void;
+  exitToTitle: () => void;
 }
 
-const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
+const GameScreen = ({
+  state,
+  makeChoice,
+  resetGame,
+  saveSlots,
+  saveToSlot,
+  loadFromSlot,
+  deleteSlot,
+  exitToTitle,
+}: GameScreenProps) => {
   const conversationEnded = !state.currentDialogue;
 
   return (
@@ -19,11 +36,23 @@ const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
         <h1 className="font-display text-sm tracking-[0.4em] gold-text-gradient uppercase">
           Crown & Concord
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="font-display text-xs text-muted-foreground">Turn {state.turnNumber}</span>
-          <button onClick={resetGame} className="font-display text-xs tracking-wider text-muted-foreground transition-colors hover:text-destructive">
+
+          <SaveLoadDialog
+            slots={saveSlots}
+            onSave={saveToSlot}
+            onLoad={loadFromSlot}
+            onDelete={deleteSlot}
+          />
+
+          <Button size="sm" variant="ghost" onClick={exitToTitle}>
+            Title
+          </Button>
+
+          <Button size="sm" variant="ghost" onClick={resetGame} className="text-destructive hover:text-destructive">
             Restart
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -42,12 +71,24 @@ const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
               </button>
             </motion.div>
           ) : (
-            <DialoguePanel node={state.currentDialogue!} onChoice={makeChoice} knownSecrets={state.knownSecrets} />
+            <DialoguePanel
+              node={state.currentDialogue!}
+              onChoice={makeChoice}
+              knownSecrets={state.knownSecrets}
+              factions={state.factions}
+            />
           )}
         </main>
 
         <motion.aside className="w-full shrink-0 lg:w-72" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-          <InfoPanel knownSecrets={state.knownSecrets} turnNumber={state.turnNumber} log={state.log} />
+          <InfoPanel
+            knownSecrets={state.knownSecrets}
+            turnNumber={state.turnNumber}
+            log={state.log}
+            world={state.world}
+            factions={state.factions}
+            pendingEncounter={state.pendingEncounter}
+          />
         </motion.aside>
       </div>
     </div>

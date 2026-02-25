@@ -3,9 +3,10 @@ import heroImage from '@/assets/hero-throne.jpg';
 
 interface TitleScreenProps {
   onStart: () => void;
+  onLoad?: () => void;
 }
 
-const TitleScreen = ({ onStart }: TitleScreenProps) => {
+const TitleScreen = ({ onStart, onLoad }: TitleScreenProps) => {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
       {/* Background image */}
@@ -54,18 +55,34 @@ const TitleScreen = ({ onStart }: TitleScreenProps) => {
           "In the fractured realm, the sharpest blade is a well-chosen word."
         </motion.p>
 
-        <motion.button
-          onClick={onStart}
-          className="group relative mt-8 font-display text-lg tracking-[0.3em] text-primary transition-all hover:text-gold-glow sm:text-xl"
+        <motion.div
+          className="mt-8 flex flex-col items-center gap-3 sm:flex-row"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.8, duration: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.98 }}
         >
-          <span className="relative z-10">BEGIN YOUR EMBASSY</span>
-          <span className="absolute -bottom-1 left-0 h-px w-full bg-primary/30 transition-all group-hover:bg-primary/60" />
-        </motion.button>
+          <motion.button
+            onClick={onStart}
+            className="group relative font-display text-lg tracking-[0.3em] text-primary transition-all hover:text-gold-glow sm:text-xl"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <span className="relative z-10">BEGIN YOUR EMBASSY</span>
+            <span className="absolute -bottom-1 left-0 h-px w-full bg-primary/30 transition-all group-hover:bg-primary/60" />
+          </motion.button>
+
+          {onLoad && (
+            <motion.button
+              onClick={onLoad}
+              className="group relative font-display text-sm tracking-[0.28em] text-muted-foreground transition-all hover:text-primary sm:text-base"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span className="relative z-10">LOAD GAME</span>
+              <span className="absolute -bottom-1 left-0 h-px w-full bg-muted-foreground/30 transition-all group-hover:bg-primary/60" />
+            </motion.button>
+          )}
+        </motion.div>
 
         <motion.div
           className="mt-16 text-xs tracking-[0.5em] text-muted-foreground/40 font-display uppercase"
