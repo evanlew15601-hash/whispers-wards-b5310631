@@ -22,7 +22,14 @@ const Index = () => {
   const slots = listSlots();
 
   if (state.currentScene === 'title') {
-    return <TitleScreen onStart={startGame} onLoad={openLoadScreen} />;
+    return (
+      <TitleScreen
+        onStart={startGame}
+        onContinue={loadFromSlot}
+        slots={slots}
+        onLoad={openLoadScreen}
+      />
+    );
   }
 
   if (state.currentScene === 'load') {

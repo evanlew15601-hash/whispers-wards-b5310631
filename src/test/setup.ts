@@ -66,9 +66,21 @@ if (!HTMLElement.prototype.setPointerCapture) {
   HTMLElement.prototype.setPointerCapture = function setPointerCapture() {};
 }
 
+if (!HTMLElement.prototype.hasPointerCapture) {
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  HTMLElement.prototype.hasPointerCapture = function hasPointerCapture() {
+    return false;
+  };
+}
+
 if (!HTMLElement.prototype.releasePointerCapture) {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   HTMLElement.prototype.releasePointerCapture = function releasePointerCapture() {};
+}
+
+if (!window.PointerEvent) {
+  (window as unknown as { PointerEvent?: typeof PointerEvent }).PointerEvent =
+    window.MouseEvent as unknown as typeof PointerEvent;
 }
 
 if (!window.requestAnimationFrame) {

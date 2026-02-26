@@ -1,16 +1,38 @@
 import { motion } from 'framer-motion';
 import heroImage from '@/assets/hero-throne.jpg';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { loadUqmWasmRuntime } from '@/game/engine/uqmWasmRuntime';
 import { Button } from '@/components/ui/button';
+import type { SaveSlotInfo } from '@/game/storage';
 
 interface TitleScreenProps {
   onStart: () => void;
   onLoad?: () => void;
+  slots?: SaveSlotInfo[];
+  onContinue?: (slotId: number) => void;
 }
 
-const TitleScreen = ({ onStart, onLoad }: TitleScreenProps) => {
+const TitleScreen = ({ onStart, onLoad, slots = [], onContinue }: TitleScreenProps) => {
   const [uqmStatus, setUqmStatus] = useState<string>('Conversation core: loading…');
+
+  const mostRecentSlotId = useMemo(() => {
+    let best: { id: number; time: number } | null = null;
+
+    for (const slot of slots) {
+      if (!slot.meta) continue;
+
+      const parsed = new Date(slot.meta.savedAt).getTime();
+      const time = Number.isNaN(parsed) ? 0 : parsed;
+
+      if (!best || time > best.time || (time === best.time && slot.id > best.id)) {
+        best = { id: slot.id, time };
+      }
+    }
+
+    return best?.id ?? null;
+  }, [slots]);
+
+  const canContinue = onContinue && mostRecentSlotId !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -81,9 +103,24 @@ const TitleScreen = ({ onStart, onLoad }: TitleScreenProps) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.8, duration: 1 }}
         >
+          {canContinue && (
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.99 }}>
+              <Button
+                size="lg"
+                onClick={() => {
+                  if (mostRecentSlotId !== null) onContinue?.(mostRecentSlotId);
+                }}
+                className="h-auto rounded-sm px-8 py-3 font-display text-sm tracking-[0.3em] uppercase"
+              >
+                Continue
+              </Button>
+            </motion.div>
+          )}
+
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.99 }}>
             <Button
               size="lg"
+              variant={canContinue ? 'secondary' : 'default'}
               onClick={onStart}
               className="h-auto rounded-sm px-8 py-3 font-display text-sm tracking-[0.3em] uppercase"
             >
@@ -95,7 +132,7 @@ const TitleScreen = ({ onStart, onLoad }: TitleScreenProps) => {
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.99 }}>
               <Button
                 size="lg"
-                variant="secondary"
+                variant={canContinue ? 'outline' : 'secondary'}
                 onClick={onLoad}
                 className="h-auto rounded-sm px-8 py-3 font-display text-sm tracking-[0.3em] uppercase"
               >

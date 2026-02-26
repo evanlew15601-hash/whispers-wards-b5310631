@@ -49,6 +49,10 @@ const GameScreen = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuTab, setMenuTab] = useState<GameMenuTab>('save');
 
+  const isEncounterDialogue = state.currentDialogue?.id.startsWith('encounter:') ?? false;
+  const canAddressEncounter = state.currentDialogue?.id === 'concord-hub';
+  const shouldShowEncounterPrompt = Boolean(state.pendingEncounter && canAddressEncounter && !isEncounterDialogue);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
@@ -130,12 +134,26 @@ const GameScreen = ({
               </Button>
             </motion.div>
           ) : (
-            <DialoguePanel
-              node={state.currentDialogue!}
-              onChoice={makeChoice}
-              knownSecrets={state.knownSecrets}
-              factions={state.factions}
-            />
+            <>
+              {shouldShowEncounterPrompt && (
+                <div className="parchment-border mb-4 flex items-center justify-between gap-4 rounded-sm bg-card p-4">
+                  <div>
+                    <div className="font-display text-xs tracking-[0.2em] text-primary uppercase">Pending encounter</div>
+                    <div className="mt-1 text-sm text-card-foreground">An encounter awaits your attention.</div>
+                  </div>
+                  <Button onClick={enterPendingEncounter} className="font-display tracking-[0.18em] uppercase">
+                    Address encounter
+                  </Button>
+                </div>
+              )}
+
+              <DialoguePanel
+                node={state.currentDialogue!}
+                onChoice={makeChoice}
+                knownSecrets={state.knownSecrets}
+                factions={state.factions}
+              />
+            </>
           )}
         </main>
 
@@ -147,7 +165,7 @@ const GameScreen = ({
             world={state.world}
             factions={state.factions}
             pendingEncounter={state.pendingEncounter}
-            canAddressEncounter={state.currentDialogue?.id === 'concord-hub'}
+            canAddressEncounter={canAddressEncounter}
             onAddressEncounter={enterPendingEncounter}
           />
         </motion.aside>
