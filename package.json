@@ -2,8 +2,14 @@
   "name": "vite_react_shadcn_ts",
   "private": true,
   "version": "0.0.0",
+  "license": "GPL-2.0-or-later",
   "type": "module",
   "scripts": {
+    "fetch:uqm-upstream": "node scripts/ensure-uqm-upstream.mjs",
+    "build:uqm-wasm": "node scripts/build-uqm-minimal-wasm.mjs",
+    "predev": "node scripts/build-uqm-minimal-wasm.mjs",
+    "prebuild": "node scripts/build-uqm-minimal-wasm.mjs",
+    "pretest": "node scripts/build-uqm-minimal-wasm.mjs",
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
@@ -83,9 +89,11 @@
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "tar": "^7.5.9",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wabt": "^1.0.37"
   }
 }

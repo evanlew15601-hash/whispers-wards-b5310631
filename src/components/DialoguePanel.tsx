@@ -1,10 +1,13 @@
-import { DialogueNode, DialogueChoice } from '@/game/types';
+import { DialogueNode, DialogueChoice, Faction } from '@/game/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Fragment, useEffect, useState } from 'react';
+import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
 
 interface DialoguePanelProps {
   node: DialogueNode;
   onChoice: (choice: DialogueChoice) => void;
   knownSecrets: string[];
+  factions: Faction[];
 }
 
 const factionLabelColors: Record<string, string> = {
@@ -13,7 +16,53 @@ const factionLabelColors: Record<string, string> = {
   'ember-throne': 'faction-ember',
 };
 
-const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => {
+const DIALOGUE_MAX_COLUMNS = 56;
+const CHOICE_MAX_COLUMNS = 52;
+
+const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanelProps) => {
+  const [dialogueLines, setDialogueLines] = useState<string[]>(() =>
+    wrapTextLinesJs(node.text, DIALOGUE_MAX_COLUMNS)
+  );
+  const [choiceLines, setChoiceLines] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(node.choices.map(c => [c.id, wrapTextLinesJs(c.text, CHOICE_MAX_COLUMNS)] as const))
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setDialogueLines(wrapTextLinesJs(node.text, DIALOGUE_MAX_COLUMNS));
+
+    void (async () => {
+      const lines = await wrapTextLinesUqm(node.text, DIALOGUE_MAX_COLUMNS);
+      if (!cancelled) setDialogueLines(lines);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [node.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setChoiceLines(
+      Object.fromEntries(node.choices.map(c => [c.id, wrapTextLinesJs(c.text, CHOICE_MAX_COLUMNS)] as const))
+    );
+
+    void (async () => {
+      const entries = await Promise.all(
+        node.choices.map(async c => [c.id, await wrapTextLinesUqm(c.text, CHOICE_MAX_COLUMNS)] as const)
+      );
+      if (!cancelled) setChoiceLines(Object.fromEntries(entries));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [node.id]);
+
+  const dialogueParagraphs = splitWrappedLinesIntoParagraphs(dialogueLines);
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -36,7 +85,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
 
         {/* Dialogue text */}
         <div className="parchment-border rounded-sm bg-card/50 p-6">
-          {node.text.split('\n\n').map((paragraph, i) => (
+          {dialogueParagraphs.map((paragraphLines, i) => (
             <motion.p
               key={i}
               className="mb-3 font-body text-sm leading-relaxed text-card-foreground last:mb-0 sm:text-base"
@@ -44,7 +93,12 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.3, duration: 0.8 }}
             >
-              {paragraph}
+              {paragraphLines.map((line, j) => (
+                <Fragment key={j}>
+                  {line}
+                  {j < paragraphLines.length - 1 && <br />}
+                </Fragment>
+              ))}
             </motion.p>
           ))}
         </div>
@@ -55,12 +109,27 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
             Your Response
           </span>
           {node.choices.map((choice, i) => {
-            const locked = choice.requiredReputation &&
-              !knownSecrets.includes('override');
+            const repReq = choice.requiredReputation;
+            const repOk = repReq
+              ? (factions.find(f => f.id === repReq.factionId)?.reputation ?? -1000) >= repReq.min
+              : true;
+
+            // Future-proofing: allow certain secrets to override locks.
+            const override = knownSecrets.includes('override');
+            const locked = Boolean(repReq) && !repOk && !override;
+
+            const reqFactionName = repReq
+              ? factions.find(f => f.id === repReq.factionId)?.name ?? repReq.factionId.replace('-', ' ')
+              : null;
+
+            const lines = choiceLines[choice.id] ?? [choice.text];
 
             return (
               <motion.button
                 key={choice.id}
+                type="button"
+                disabled={locked}
+                title={locked && repReq ? `Requires ${reqFactionName} reputation ≥ ${repReq.min}` : undefined}
                 onClick={() => !locked && onChoice(choice)}
                 className={`group relative rounded-sm border border-border bg-secondary/50 p-4 text-left font-body text-sm transition-all sm:text-base
                   ${locked
@@ -72,10 +141,22 @@ const DialoguePanel = ({ node, onChoice, knownSecrets }: DialoguePanelProps) => 
                 transition={{ delay: 0.8 + i * 0.15, duration: 0.4 }}
                 whileHover={locked ? {} : { x: 4 }}
               >
-                <span className="text-secondary-foreground">{choice.text}</span>
+                <span className="text-secondary-foreground">
+                  {lines.map((line, j) => (
+                    <Fragment key={j}>
+                      {line}
+                      {j < lines.length - 1 && <br />}
+                    </Fragment>
+                  ))}
+                </span>
 
                 {/* Effect indicators */}
                 <div className="mt-2 flex flex-wrap gap-2">
+                  {repReq && locked && (
+                    <span className="text-[10px] font-display tracking-wider text-muted-foreground">
+                      🔒 requires {repReq.factionId.replace('-', ' ')} ≥ {repReq.min}
+                    </span>
+                  )}
                   {choice.effects.map(effect => (
                     <span
                       key={effect.factionId}

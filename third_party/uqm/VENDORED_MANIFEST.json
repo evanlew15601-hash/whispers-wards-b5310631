@@ -1,0 +1,17 @@
+{
+  "pinned_revision": "ff2444088d42e80612fd28f79d368783e244a606",
+  "upstream_repo": "https://github.com/juj/sc2-uqm",
+  "vendored_files": [
+    "COPYING",
+    "sc2/src/uqm/cnctdlg.c",
+    "sc2/src/uqm/cnctdlg.h",
+    "sc2/src/uqm/comm.c",
+    "sc2/src/uqm/comm.h",
+    "sc2/src/uqm/commglue.c",
+    "sc2/src/uqm/commglue.h"
+  ],
+  "derived_files": [
+    "minimal_wasm/uqm_min.c",
+    "minimal_wasm/uqm_min.wat"
+  ]
+}

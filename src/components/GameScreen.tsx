@@ -1,17 +1,91 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { GameState, DialogueChoice } from '@/game/types';
+import { SaveSlotInfo } from '@/game/storage';
 import DialoguePanel from '@/components/DialoguePanel';
 import FactionPanel from '@/components/FactionPanel';
 import InfoPanel from '@/components/InfoPanel';
+import GameMenu from '@/components/GameMenu';
+import { Button } from '@/components/ui/button';
 
 interface GameScreenProps {
   state: GameState;
+  engineLabel: string;
   makeChoice: (choice: DialogueChoice) => void;
   resetGame: () => void;
+  saveSlots: SaveSlotInfo[];
+  saveToSlot: (slotId: number) => void;
+  loadFromSlot: (slotId: number) => void;
+  deleteSlot: (slotId: number) => void;
+  exitToTitle: () => void;
+  enterPendingEncounter: () => void;
 }
 
-const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
+type GameMenuTab = 'save' | 'load' | 'campaign' | 'about';
+
+const isUserTyping = () => {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+
+  return el.isContentEditable;
+};
+
+const GameScreen = ({
+  state,
+  engineLabel,
+  makeChoice,
+  resetGame,
+  saveSlots,
+  saveToSlot,
+  loadFromSlot,
+  deleteSlot,
+  exitToTitle,
+  enterPendingEncounter,
+}: GameScreenProps) => {
   const conversationEnded = !state.currentDialogue;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState<GameMenuTab>('save');
+
+  const isEncounterDialogue = state.currentDialogue?.id.startsWith('encounter:') ?? false;
+  const canAddressEncounter = state.currentDialogue?.id === 'concord-hub';
+  const shouldShowEncounterPrompt = Boolean(state.pendingEncounter && canAddressEncounter && !isEncounterDialogue);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+
+      const key = e.key?.toLowerCase();
+      if (!key) return;
+
+      if (isUserTyping()) return;
+
+      const mod = e.ctrlKey || e.metaKey;
+
+      if (key === 'escape') {
+        setMenuOpen(prev => !prev);
+        return;
+      }
+
+      if (mod && key === 's') {
+        e.preventDefault();
+        setMenuTab('save');
+        setMenuOpen(true);
+        return;
+      }
+
+      if (mod && key === 'o') {
+        e.preventDefault();
+        setMenuTab('load');
+        setMenuOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -19,11 +93,25 @@ const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
         <h1 className="font-display text-sm tracking-[0.4em] gold-text-gradient uppercase">
           Crown & Concord
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span className="font-display text-xs text-muted-foreground">Turn {state.turnNumber}</span>
-          <button onClick={resetGame} className="font-display text-xs tracking-wider text-muted-foreground transition-colors hover:text-destructive">
-            Restart
-          </button>
+          <span className="font-display text-[10px] tracking-[0.22em] text-muted-foreground/70 uppercase">
+            Engine: {engineLabel}
+          </span>
+
+          <GameMenu
+            slots={saveSlots}
+            onSave={saveToSlot}
+            onLoad={loadFromSlot}
+            onDelete={deleteSlot}
+            engineLabel={engineLabel}
+            onExitToTitle={exitToTitle}
+            onRestartCampaign={resetGame}
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            activeTab={menuTab}
+            onActiveTabChange={setMenuTab}
+          />
         </div>
       </header>
 
@@ -37,17 +125,49 @@ const GameScreen = ({ state, makeChoice, resetGame }: GameScreenProps) => {
             <motion.div className="flex flex-col items-center justify-center gap-6 py-20" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <p className="font-display text-lg text-muted-foreground text-center">The conversation has reached its conclusion.</p>
               <p className="font-body text-sm italic text-muted-foreground/60 text-center max-w-md">Your choices have shaped the realm's future. The factions remember.</p>
-              <button onClick={resetGame} className="font-display text-sm tracking-[0.2em] text-primary hover:text-gold-glow transition-colors border border-primary/30 px-6 py-2 rounded-sm hover:border-primary/60">
+              <Button
+                onClick={resetGame}
+                variant="outline"
+                className="h-auto rounded-sm border-primary/30 px-6 py-2 font-display text-sm tracking-[0.2em] text-primary transition-colors hover:border-primary/60 hover:text-gold-glow"
+              >
                 Begin Again
-              </button>
+              </Button>
             </motion.div>
           ) : (
-            <DialoguePanel node={state.currentDialogue!} onChoice={makeChoice} knownSecrets={state.knownSecrets} />
+            <>
+              {shouldShowEncounterPrompt && (
+                <div className="parchment-border mb-4 flex items-center justify-between gap-4 rounded-sm bg-card p-4">
+                  <div>
+                    <div className="font-display text-xs tracking-[0.2em] text-primary uppercase">Pending encounter</div>
+                    <div className="mt-1 text-sm text-card-foreground">An encounter awaits your attention.</div>
+                  </div>
+                  <Button onClick={enterPendingEncounter} className="font-display tracking-[0.18em] uppercase">
+                    Address encounter
+                  </Button>
+                </div>
+              )}
+
+              <DialoguePanel
+                node={state.currentDialogue!}
+                onChoice={makeChoice}
+                knownSecrets={state.knownSecrets}
+                factions={state.factions}
+              />
+            </>
           )}
         </main>
 
         <motion.aside className="w-full shrink-0 lg:w-72" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-          <InfoPanel knownSecrets={state.knownSecrets} turnNumber={state.turnNumber} log={state.log} />
+          <InfoPanel
+            knownSecrets={state.knownSecrets}
+            turnNumber={state.turnNumber}
+            log={state.log}
+            world={state.world}
+            factions={state.factions}
+            pendingEncounter={state.pendingEncounter}
+            canAddressEncounter={canAddressEncounter}
+            onAddressEncounter={enterPendingEncounter}
+          />
         </motion.aside>
       </div>
     </div>

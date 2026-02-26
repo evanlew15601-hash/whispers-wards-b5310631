@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Generated WASM (built via scripts/build-uqm-minimal-wasm.mjs)
+public/wasm/*.wasm
+
+# Downloaded upstream UQM snapshot (installed by scripts/fetch-uqm-upstream.mjs)
+third_party/uqm/upstream/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

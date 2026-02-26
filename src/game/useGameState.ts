@@ -1,85 +1,171 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { GameState, DialogueChoice } from './types';
-import { initialFactions, dialogueTree, initialEvents } from './data';
-
-const createInitialState = (): GameState => ({
-  currentScene: 'title',
-  factions: initialFactions.map(f => ({ ...f })),
-  currentDialogue: null,
-  events: initialEvents.map(e => ({ ...e })),
-  knownSecrets: [],
-  turnNumber: 1,
-  log: [],
-});
+import { dialogueTree } from './data';
+import {
+  SaveSlotInfo,
+  listSaveSlots,
+  saveGameToSlot,
+  loadGameFromSlot,
+  deleteSaveSlot,
+} from './storage';
+import { tsConversationEngine } from './engine/tsConversationEngine';
+import { loadUqmWasmRuntime } from './engine/uqmWasmRuntime';
+import { createUqmWasmConversationEngine } from './engine/uqmWasmConversationEngine';
+import { buildEncounterDialogueNode } from './encounters';
 
 export function useGameState() {
-  const [state, setState] = useState<GameState>(createInitialState);
+  const engineRef = useRef(tsConversationEngine);
 
-  const startGame = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      currentScene: 'game',
-      currentDialogue: dialogueTree['opening'],
-      log: ['You arrive at the Concord Hall as envoy to the fractured realm...'],
-    }));
+  const [engineLabel, setEngineLabel] = useState<'TS' | 'UQM WASM'>('TS');
+
+  const [state, setState] = useState<GameState>(() => engineRef.current.createInitialState());
+  const [saveSlots, setSaveSlots] = useState<SaveSlotInfo[]>(() => listSaveSlots());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadUqmWasmRuntime()
+      .then(uqm => {
+        if (cancelled) return;
+        engineRef.current = createUqmWasmConversationEngine(uqm);
+        setEngineLabel('UQM WASM');
+      })
+      .catch(() => {
+        // Ignore; we simply stay on the TS engine.
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const refreshSlots = useCallback(() => {
+    setSaveSlots(listSaveSlots());
+  }, []);
+
+  const startGame = useCallback(() => {
+    setState(engineRef.current.startNewGame());
+  }, []);
+
+  const openLoadScreen = useCallback(() => {
+    refreshSlots();
+    setState(prev => ({
+      ...prev,
+      currentScene: 'load',
+    }));
+  }, [refreshSlots]);
+
+  const backToTitle = useCallback(() => {
+    refreshSlots();
+    setState(prev => ({
+      ...prev,
+      currentScene: 'title',
+    }));
+  }, [refreshSlots]);
+
+  const saveToSlot = useCallback((slotId: number) => {
+    const ok = saveGameToSlot(slotId, state);
+    refreshSlots();
+
+    if (ok) {
+      toast.success(`Saved to Slot ${slotId}`);
+    } else {
+      toast.error(`Failed to save Slot ${slotId}`);
+    }
+  }, [state, refreshSlots]);
+
+  const loadFromSlot = useCallback((slotId: number) => {
+    const loaded = loadGameFromSlot(slotId);
+    if (!loaded) {
+      toast.error(`Slot ${slotId} is empty.`);
+      return;
+    }
+
+    // Back/forward compatibility: hydrate missing fields and refresh dialogue from the current tree when possible.
+    const base = engineRef.current.createInitialState();
+    const loadedAny = loaded as unknown as Partial<GameState> & {
+      currentDialogue?: { id?: string } | null;
+      currentDialogueId?: string | null;
+    };
+
+    const pendingEncounter = loadedAny.pendingEncounter ?? null;
+
+    const loadedDialogueId =
+      typeof loadedAny.currentDialogueId === 'string'
+        ? loadedAny.currentDialogueId
+        : loadedAny.currentDialogue && typeof loadedAny.currentDialogue === 'object'
+          ? (loadedAny.currentDialogue as { id?: string }).id ?? null
+          : null;
+
+    const hydrated: GameState = {
+      ...base,
+      ...loadedAny,
+      factions: loadedAny.factions ?? base.factions,
+      events: loadedAny.events ?? base.events,
+      knownSecrets: loadedAny.knownSecrets ?? base.knownSecrets,
+      log: loadedAny.log ?? base.log,
+      turnNumber: typeof loadedAny.turnNumber === 'number' ? loadedAny.turnNumber : base.turnNumber,
+      rngSeed: typeof loadedAny.rngSeed === 'number' ? loadedAny.rngSeed : base.rngSeed,
+      world: loadedAny.world ?? base.world,
+      pendingEncounter,
+      currentDialogue: loadedDialogueId
+        ? loadedDialogueId.startsWith('encounter:') && pendingEncounter
+          ? buildEncounterDialogueNode(pendingEncounter)
+          : dialogueTree[loadedDialogueId] ?? (loadedAny.currentDialogue as GameState['currentDialogue'])
+        : (loadedAny.currentDialogue as GameState['currentDialogue']) ?? null,
+      // Always resume gameplay after loading a save.
+      currentScene: 'game',
+    };
+
+    setState(hydrated);
+    refreshSlots();
+    toast.success(`Loaded Slot ${slotId}`);
+  }, [refreshSlots]);
+
+  const deleteSlot = useCallback((slotId: number) => {
+    const ok = deleteSaveSlot(slotId);
+    refreshSlots();
+
+    if (ok) {
+      toast.success(`Deleted Slot ${slotId}`);
+    } else {
+      toast.error(`Failed to delete Slot ${slotId}`);
+    }
+  }, [refreshSlots]);
+
+  const listSlots = useCallback(() => saveSlots, [saveSlots]);
+
   const makeChoice = useCallback((choice: DialogueChoice) => {
+    setState(prev => engineRef.current.applyChoice(prev, choice));
+  }, []);
+
+  const resetGame = useCallback(() => {
+    setState(engineRef.current.createInitialState());
+  }, []);
+
+  const enterPendingEncounter = useCallback(() => {
     setState(prev => {
-      const newFactions = prev.factions.map(f => {
-        const effect = choice.effects.find(e => e.factionId === f.id);
-        if (effect) {
-          return {
-            ...f,
-            reputation: Math.max(-100, Math.min(100, f.reputation + effect.reputationChange)),
-          };
-        }
-        return f;
-      });
-
-      const newSecrets = choice.revealsInfo
-        ? [...prev.knownSecrets, choice.revealsInfo]
-        : prev.knownSecrets;
-
-      // Check events
-      const newEvents = prev.events.map(event => {
-        if (event.triggered || !event.triggerCondition) return event;
-        const faction = newFactions.find(f => f.id === event.triggerCondition!.factionId);
-        if (!faction) return event;
-        const met = event.triggerCondition.direction === 'above'
-          ? faction.reputation >= event.triggerCondition.reputationThreshold
-          : faction.reputation <= event.triggerCondition.reputationThreshold;
-        return met ? { ...event, triggered: true } : event;
-      });
-
-      const triggeredEvents = newEvents.filter(
-        (e, i) => e.triggered && !prev.events[i].triggered
-      );
-
-      const newLog = [
-        ...prev.log,
-        `> ${choice.text}`,
-        ...triggeredEvents.map(e => `⚡ Event: ${e.title} — ${e.description}`),
-        ...(choice.revealsInfo ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
-      ];
-
-      const nextDialogue = choice.nextNodeId ? dialogueTree[choice.nextNodeId] || null : null;
-
+      if (!prev.pendingEncounter) return prev;
       return {
         ...prev,
-        factions: newFactions,
-        currentDialogue: nextDialogue,
-        events: newEvents,
-        knownSecrets: [...new Set(newSecrets)],
-        turnNumber: prev.turnNumber + 1,
-        log: newLog,
+        currentDialogue: buildEncounterDialogueNode(prev.pendingEncounter),
       };
     });
   }, []);
 
-  const resetGame = useCallback(() => {
-    setState(createInitialState());
-  }, []);
-
-  return { state, startGame, makeChoice, resetGame };
+  return {
+    state,
+    engineLabel,
+    startGame,
+    openLoadScreen,
+    backToTitle,
+    saveToSlot,
+    loadFromSlot,
+    deleteSlot,
+    listSlots,
+    makeChoice,
+    resetGame,
+    enterPendingEncounter,
+  };
 }
