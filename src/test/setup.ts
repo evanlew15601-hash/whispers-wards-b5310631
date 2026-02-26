@@ -1,6 +1,11 @@
 import "@testing-library/jest-dom";
+import { cleanup } from "@testing-library/react";
 import { TextDecoder, TextEncoder } from "node:util";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
+
+afterEach(() => {
+  cleanup();
+});
 
 // Helps React Testing Library + React 18 avoid act(...) warnings in some cases.
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

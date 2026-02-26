@@ -1,22 +1,12 @@
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { GameState, DialogueChoice } from '@/game/types';
 import { SaveSlotInfo } from '@/game/storage';
 import DialoguePanel from '@/components/DialoguePanel';
 import FactionPanel from '@/components/FactionPanel';
 import InfoPanel from '@/components/InfoPanel';
-import SaveLoadDialog from '@/components/SaveLoadDialog';
+import GameMenu from '@/components/GameMenu';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 
 interface GameScreenProps {
   state: GameState;
@@ -31,6 +21,18 @@ interface GameScreenProps {
   enterPendingEncounter: () => void;
 }
 
+type GameMenuTab = 'save' | 'load' | 'campaign' | 'about';
+
+const isUserTyping = () => {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+
+  const tag = el.tagName.toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+
+  return el.isContentEditable;
+};
+
 const GameScreen = ({
   state,
   engineLabel,
@@ -44,6 +46,42 @@ const GameScreen = ({
   enterPendingEncounter,
 }: GameScreenProps) => {
   const conversationEnded = !state.currentDialogue;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState<GameMenuTab>('save');
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+
+      const key = e.key?.toLowerCase();
+      if (!key) return;
+
+      if (isUserTyping()) return;
+
+      const mod = e.ctrlKey || e.metaKey;
+
+      if (key === 'escape') {
+        setMenuOpen(prev => !prev);
+        return;
+      }
+
+      if (mod && key === 's') {
+        e.preventDefault();
+        setMenuTab('save');
+        setMenuOpen(true);
+        return;
+      }
+
+      if (mod && key === 'o') {
+        e.preventDefault();
+        setMenuTab('load');
+        setMenuOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,57 +95,19 @@ const GameScreen = ({
             Engine: {engineLabel}
           </span>
 
-          <SaveLoadDialog
+          <GameMenu
             slots={saveSlots}
             onSave={saveToSlot}
             onLoad={loadFromSlot}
             onDelete={deleteSlot}
+            engineLabel={engineLabel}
+            onExitToTitle={exitToTitle}
+            onRestartCampaign={resetGame}
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            activeTab={menuTab}
+            onActiveTabChange={setMenuTab}
           />
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="ghost">
-                Exit to Title
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Exit to Title</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Return to the title screen. Make sure you have saved if you want to keep your progress.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={exitToTitle}>Exit to Title</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
-                Restart Campaign
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Restart Campaign</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will reset your current campaign. Make sure you have saved if you want to keep your progress.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={resetGame}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Restart Campaign
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </header>
 
