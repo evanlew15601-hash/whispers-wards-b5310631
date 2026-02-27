@@ -23,6 +23,8 @@ export type UqmWasmRuntime = {
   lineFitChars: (text: string, maxWidth: number) => number;
 };
 
+const DEFAULT_LOAD_TIMEOUT_MS = 15_000;
+
 let cached: Promise<UqmWasmRuntime> | null = null;
 
 function getExports(instance: WebAssembly.Instance): UqmWasmExports {
@@ -106,50 +108,72 @@ function getExports(instance: WebAssembly.Instance): UqmWasmExports {
 async function instantiateUqmWasm(): Promise<UqmWasmRuntime> {
   const wasmUrl = `${import.meta.env.BASE_URL}wasm/uqm_minimal.wasm`;
 
-  const response = await fetch(wasmUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to load UQM wasm: ${response.status} ${response.statusText}`);
-  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_LOAD_TIMEOUT_MS);
 
-  let instance: WebAssembly.Instance;
-  if ('instantiateStreaming' in WebAssembly) {
-    try {
-      const res = await WebAssembly.instantiateStreaming(response, {});
-      instance = res.instance;
-    } catch {
-      const bytes = await (await fetch(wasmUrl)).arrayBuffer();
+  try {
+    const response = await fetch(wasmUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Failed to load UQM wasm: ${response.status} ${response.statusText}`);
+    }
+
+    let instance: WebAssembly.Instance;
+    if (typeof WebAssembly.instantiateStreaming === 'function') {
+      try {
+        const res = await WebAssembly.instantiateStreaming(response, {});
+        instance = res.instance;
+      } catch (err) {
+        if (controller.signal.aborted) {
+          throw new Error('Timed out loading UQM wasm');
+        }
+
+        const bytes = await (await fetch(wasmUrl, { signal: controller.signal })).arrayBuffer();
+        const res = await WebAssembly.instantiate(bytes, {});
+        instance = res.instance;
+      }
+    } else {
+      const bytes = await response.arrayBuffer();
       const res = await WebAssembly.instantiate(bytes, {});
       instance = res.instance;
     }
-  } else {
-    const bytes = await response.arrayBuffer();
-    const res = await WebAssembly.instantiate(bytes, {});
-    instance = res.instance;
+
+    const exports = getExports(instance);
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    return {
+      exports,
+      getVersionString() {
+        const ptr = exports.uqm_version_ptr();
+        const len = exports.uqm_version_len();
+        return decoder.decode(new Uint8Array(exports.memory.buffer, ptr, len));
+      },
+      lineFitChars(text, maxWidth) {
+        const bytes = encoder.encode(text);
+        const ptr = exports.uqm_alloc(bytes.length + 1);
+        const mem = new Uint8Array(exports.memory.buffer, ptr, bytes.length + 1);
+        mem.set(bytes);
+        mem[bytes.length] = 0;
+        return exports.uqm_line_fit_chars(ptr, maxWidth);
+      },
+    };
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error('Timed out loading UQM wasm');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const exports = getExports(instance);
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  return {
-    exports,
-    getVersionString() {
-      const ptr = exports.uqm_version_ptr();
-      const len = exports.uqm_version_len();
-      return decoder.decode(new Uint8Array(exports.memory.buffer, ptr, len));
-    },
-    lineFitChars(text, maxWidth) {
-      const bytes = encoder.encode(text);
-      const ptr = exports.uqm_alloc(bytes.length + 1);
-      const mem = new Uint8Array(exports.memory.buffer, ptr, bytes.length + 1);
-      mem.set(bytes);
-      mem[bytes.length] = 0;
-      return exports.uqm_line_fit_chars(ptr, maxWidth);
-    },
-  };
 }
 
 export function loadUqmWasmRuntime(): Promise<UqmWasmRuntime> {
-  if (!cached) cached = instantiateUqmWasm();
+  if (!cached) {
+    cached = instantiateUqmWasm().catch(err => {
+      cached = null;
+      throw err;
+    });
+  }
+
   return cached;
 }
