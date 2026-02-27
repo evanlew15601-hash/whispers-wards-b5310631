@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
+import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 
 interface DialoguePanelProps {
@@ -45,6 +46,8 @@ const isUserTyping = () => {
 };
 
 const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanelProps) => {
+  const { playSfx } = useAudio();
+
   const fullText = node.text;
 
   const [revealedChars, setRevealedChars] = useState(0);
@@ -63,24 +66,30 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
   const visibleText = useMemo(() => fullText.slice(0, revealedChars), [fullText, revealedChars]);
 
   const skipReveal = useCallback(() => {
+    playSfx('ui.skip');
+
     if (revealTimerRef.current != null) {
       window.clearInterval(revealTimerRef.current);
       revealTimerRef.current = null;
     }
     setRevealedChars(fullText.length);
     setIsRevealing(false);
-  }, [fullText.length]);
+  }, [fullText.length, playSfx]);
 
   const nudgeLockedChoice = useCallback((choiceId: string) => {
+    playSfx('ui.locked');
+
     setLockedNudgeId(choiceId);
     if (nudgeTimerRef.current != null) window.clearTimeout(nudgeTimerRef.current);
     nudgeTimerRef.current = window.setTimeout(() => {
       setLockedNudgeId(prev => (prev === choiceId ? null : prev));
       nudgeTimerRef.current = null;
     }, 220);
-  }, []);
+  }, [playSfx]);
 
   useEffect(() => {
+    playSfx('ui.page');
+
     setRevealedChars(0);
     setIsRevealing(true);
     setLockedNudgeId(null);
@@ -124,7 +133,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
         nudgeTimerRef.current = null;
       }
     };
-  }, [node.id, fullText]);
+  }, [node.id, fullText, playSfx]);
 
   useEffect(() => {
     setDialogueLines(wrapTextLinesJs(visibleText, DIALOGUE_MAX_COLUMNS));
@@ -195,13 +204,14 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
           return;
         }
 
+        playSfx('ui.select');
         onChoice(choice);
       }
     };
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, onChoice, nudgeLockedChoice]);
+  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, onChoice, nudgeLockedChoice, playSfx]);
 
   const dialogueParagraphs = splitWrappedLinesIntoParagraphs(dialogueLines);
 
@@ -335,6 +345,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
                   nudgeLockedChoice(choice.id);
                   return;
                 }
+                playSfx('ui.select');
                 onChoice(choice);
               };
 

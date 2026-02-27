@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { SaveSlotInfo } from '@/game/storage';
+import { useAudio } from '@/audio/useAudio';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Sheet,
@@ -57,6 +60,8 @@ const GameMenu = ({
   activeTab: activeTabProp,
   onActiveTabChange: onActiveTabChangeProp,
 }: GameMenuProps) => {
+  const { settings: audioSettings, patchSettings, playSfx } = useAudio();
+
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
   const setOpen = onOpenChangeProp ?? setUncontrolledOpen;
@@ -344,10 +349,88 @@ const GameMenu = ({
               </div>
 
               <div className="parchment-border rounded-sm bg-card p-4">
+                <div className="font-display text-xs tracking-[0.2em] text-muted-foreground uppercase">Audio</div>
+
+                <div className="mt-3 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-card-foreground">Sound</div>
+                    <div className="text-[11px] text-muted-foreground">UI cues and ambience.</div>
+                  </div>
+
+                  <Switch
+                    checked={audioSettings.enabled}
+                    onCheckedChange={checked => {
+                      patchSettings({ enabled: checked });
+                      if (checked) playSfx('ui.select');
+                    }}
+                    aria-label="Enable sound"
+                  />
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-display tracking-[0.2em] text-muted-foreground uppercase">Master</div>
+                      <div className="text-[11px] font-mono text-muted-foreground">{Math.round(audioSettings.masterVolume * 100)}%</div>
+                    </div>
+                    <Slider
+                      value={[Math.round(audioSettings.masterVolume * 100)]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={([v]) => patchSettings({ masterVolume: (v ?? 0) / 100 })}
+                      onValueCommit={() => playSfx('ui.select')}
+                      disabled={!audioSettings.enabled}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-display tracking-[0.2em] text-muted-foreground uppercase">SFX</div>
+                      <div className="text-[11px] font-mono text-muted-foreground">{Math.round(audioSettings.sfxVolume * 100)}%</div>
+                    </div>
+                    <Slider
+                      value={[Math.round(audioSettings.sfxVolume * 100)]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={([v]) => patchSettings({ sfxVolume: (v ?? 0) / 100 })}
+                      onValueCommit={() => playSfx('ui.select')}
+                      disabled={!audioSettings.enabled}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-display tracking-[0.2em] text-muted-foreground uppercase">Ambience</div>
+                      <div className="text-[11px] font-mono text-muted-foreground">{Math.round(audioSettings.ambienceVolume * 100)}%</div>
+                    </div>
+                    <Slider
+                      value={[Math.round(audioSettings.ambienceVolume * 100)]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={([v]) => patchSettings({ ambienceVolume: (v ?? 0) / 100 })}
+                      disabled={!audioSettings.enabled}
+                    />
+                    <div className="text-[11px] text-muted-foreground">
+                      Ambience playback will be wired to scenes once audio assets are added.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="parchment-border rounded-sm bg-card p-4">
                 <div className="font-display text-xs tracking-[0.2em] text-muted-foreground uppercase">Controls</div>
                 <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
                   <li>
                     <span className="font-mono">Esc</span> Toggle menu
+                  </li>
+                  <li>
+                    <span className="font-mono">Space</span> / <span className="font-mono">Enter</span> Skip dialogue reveal
+                  </li>
+                  <li>
+                    <span className="font-mono">1</span>–<span className="font-mono">9</span> Choose a response
                   </li>
                   <li>
                     <span className="font-mono">Ctrl</span>/<span className="font-mono">Cmd</span>+<span className="font-mono">S</span>{' '}

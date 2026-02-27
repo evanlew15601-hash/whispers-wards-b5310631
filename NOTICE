@@ -26,4 +26,10 @@ Vendored upstream code:
   - Vendored path: third_party/uqm/
   - Upstream license text: third_party/uqm/COPYING
 
+- ZzFXMicro sound synthesizer (MIT)
+  - Upstream project: ZzFX
+  - Upstream URL: https://github.com/KilledByAPixel/ZzFX
+  - Vendored path: src/audio/zzfx.ts
+  - Upstream license text: https://github.com/KilledByAPixel/ZzFX/blob/master/LICENSE
+
 This repository does NOT include any UQM content (dialogue, voice, images, sounds, music, etc.).
