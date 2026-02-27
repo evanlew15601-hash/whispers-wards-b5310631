@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
+import { isChoiceLocked } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 
@@ -191,13 +192,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
         const choice = node.choices[idx];
         if (!choice) return;
 
-        const repReq = choice.requiredReputation;
-        const repOk = repReq
-          ? (factions.find(f => f.id === repReq.factionId)?.reputation ?? -1000) >= repReq.min
-          : true;
-
-        const override = knownSecrets.includes('override');
-        const locked = Boolean(repReq) && !repOk && !override;
+        const locked = isChoiceLocked(choice, factions, knownSecrets);
 
         if (locked) {
           nudgeLockedChoice(choice.id);
@@ -325,13 +320,9 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions }: DialoguePanel
 
           <div className={`flex flex-col gap-2 transition-opacity ${isRevealing ? 'opacity-45 pointer-events-none' : 'opacity-100'}`}>
             {node.choices.map((choice, i) => {
-              const repReq = choice.requiredReputation;
-              const repOk = repReq
-                ? (factions.find(f => f.id === repReq.factionId)?.reputation ?? -1000) >= repReq.min
-                : true;
+              const locked = isChoiceLocked(choice, factions, knownSecrets);
 
-              const override = knownSecrets.includes('override');
-              const locked = Boolean(repReq) && !repOk && !override;
+              const repReq = choice.requiredReputation;
 
               const reqFactionName = repReq
                 ? factions.find(f => f.id === repReq.factionId)?.name ?? repReq.factionId.replace('-', ' ')

@@ -5,6 +5,7 @@ import { tsConversationEngine } from './tsConversationEngine';
 import type { UqmWasmRuntime } from './uqmWasmRuntime';
 import { loadUqmMinimalWasmExports } from '@/test/uqmWasmTestUtils';
 import { dialogueTree } from '../data';
+import { isChoiceLocked } from '../choiceLocks';
 
 function makeRuntime(exports: Awaited<ReturnType<typeof loadUqmMinimalWasmExports>>): UqmWasmRuntime {
   const encoder = new TextEncoder();
@@ -152,5 +153,44 @@ describe('uqmWasmConversationEngine', () => {
     expect(repWasm2).toEqual(repTs2);
 
     expect(nextWasm2.knownSecrets).toEqual(nextTs2.knownSecrets);
+  });
+
+  it('keeps lock behavior aligned (UI/TS helper vs engine execution) for summit choices', () => {
+    const wasmEngine = createUqmWasmConversationEngine(uqmRuntime);
+
+    const start = tsConversationEngine.startNewGame();
+    const base = {
+      ...start,
+      currentDialogue: dialogueTree['summit-start'],
+      rngSeed: 123456789,
+      factions: start.factions.map(f => ({ ...f, reputation: 0 })),
+    };
+
+    for (const choice of base.currentDialogue!.choices) {
+      const helperLocked = isChoiceLocked(choice, base.factions, base.knownSecrets);
+      const nextTs = tsConversationEngine.applyChoice(base, choice);
+      const nextWasm = wasmEngine.applyChoice(base, choice);
+
+      if (helperLocked) {
+        expect(nextTs).toBe(base);
+        expect(nextWasm).toBe(base);
+      } else {
+        expect(nextTs).not.toBe(base);
+        expect(nextWasm).not.toBe(base);
+      }
+    }
+
+    const withOverride = { ...base, knownSecrets: ['override'] };
+    const lockedChoice = withOverride.currentDialogue!.choices.find(c => c.requiredReputation);
+    if (!lockedChoice) throw new Error('Expected a reputation-locked choice');
+
+    expect(isChoiceLocked(lockedChoice, withOverride.factions, withOverride.knownSecrets)).toBe(false);
+
+    const nextTs = tsConversationEngine.applyChoice(withOverride, lockedChoice);
+    const nextWasm = wasmEngine.applyChoice(withOverride, lockedChoice);
+
+    expect(nextTs).not.toBe(withOverride);
+    expect(nextWasm).not.toBe(withOverride);
+    expect(nextWasm.currentDialogue?.id).toBe(nextTs.currentDialogue?.id);
   });
 });
