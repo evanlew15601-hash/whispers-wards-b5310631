@@ -15,13 +15,28 @@ describe('UQM minimal wasm build artifact', () => {
       expect(typeof exp.uqm_line_fit_chars).toBe('function');
 
       expect(typeof exp.uqm_conv_reset).toBe('function');
+      expect(typeof exp.uqm_conv_reset64).toBe('function');
       expect(typeof exp.uqm_conv_set_graph).toBe('function');
+      expect(typeof exp.uqm_conv_set_graph_blob).toBe('function');
       expect(typeof exp.uqm_conv_get_current_node).toBe('function');
       expect(typeof exp.uqm_conv_get_rep).toBe('function');
       expect(typeof exp.uqm_conv_get_secrets).toBe('function');
+      expect(typeof exp.uqm_conv_get_secrets_lo).toBe('function');
+      expect(typeof exp.uqm_conv_get_secrets_hi).toBe('function');
       expect(typeof exp.uqm_conv_get_choice_count).toBe('function');
       expect(typeof exp.uqm_conv_choice_is_locked).toBe('function');
+      expect(typeof exp.uqm_conv_get_locked_choices_lo).toBe('function');
+      expect(typeof exp.uqm_conv_get_locked_choices_hi).toBe('function');
       expect(typeof exp.uqm_conv_choose).toBe('function');
+      expect(typeof exp.uqm_conv_choose_force).toBe('function');
+
+      expect(typeof exp.uqm_conv_choice_get_req_faction).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_req_min).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_d0).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_d1).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_d2).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_reveal_lo).toBe('function');
+      expect(typeof exp.uqm_conv_choice_get_reveal_hi).toBe('function');
     },
     60_000,
   );

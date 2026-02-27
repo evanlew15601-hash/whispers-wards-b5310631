@@ -1,4 +1,4 @@
-import type { ConversationEngine } from './conversationEngine';
+import type { ConversationEngine, ChoiceUiHint } from './conversationEngine';
 import type { DialogueChoice, GameState } from '../types';
 
 import { dialogueTree } from '../data';
@@ -16,13 +16,23 @@ function factionIndex(factionId: string): number {
   return -1;
 }
 
+function factionIdFromIndex(idx: number): string | null {
+  if (idx === 0) return 'iron-pact';
+  if (idx === 1) return 'verdant-court';
+  if (idx === 2) return 'ember-throne';
+  return null;
+}
+
 type CompiledGraph = {
   nodeIds: string[];
   nodeIdToIndex: Map<string, number>;
   secretToBit: Map<string, number>;
+  bitToSecret: (string | null)[];
+  secretBitCapacity: number;
+  choiceStrideBytes: number;
 };
 
-function compileGraph(): CompiledGraph {
+function compileGraph(secretBitCapacity: number, choiceStrideBytes: number): CompiledGraph {
   const nodeIds = Object.keys(dialogueTree).sort();
   const nodeIdToIndex = new Map<string, number>(nodeIds.map((id, idx) => [id, idx]));
 
@@ -32,14 +42,15 @@ function compileGraph(): CompiledGraph {
       if (c.revealsInfo) secrets.add(c.revealsInfo);
     }
   }
+
   const secretsSorted = [...secrets].sort();
-  // The minimal wasm core has a 32-bit secrets mask. If the narrative contains
-  // more than 32 unique secrets, we deterministically map the first 32 and
-  // ignore the rest for wasm purposes (the TS state still preserves all secrets).
-  const secretsForWasm = secretsSorted.slice(0, 32);
+  const secretsForWasm = secretsSorted.slice(0, secretBitCapacity);
   const secretToBit = new Map<string, number>(secretsForWasm.map((s, i) => [s, i]));
 
-  return { nodeIds, nodeIdToIndex, secretToBit };
+  const bitToSecret = new Array<string | null>(secretBitCapacity).fill(null);
+  for (let i = 0; i < secretsForWasm.length; i++) bitToSecret[i] = secretsForWasm[i];
+
+  return { nodeIds, nodeIdToIndex, secretToBit, bitToSecret, secretBitCapacity, choiceStrideBytes };
 }
 
 function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
@@ -50,10 +61,13 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
 
   let totalChoices = 0;
   for (const id of graph.nodeIds) totalChoices += dialogueTree[id].choices.length;
-  const choicesSize = totalChoices * 18;
+  const choicesSize = totalChoices * graph.choiceStrideBytes;
 
-  const nodesPtr = exports.uqm_alloc(nodesSize);
-  const choicesPtr = exports.uqm_alloc(choicesSize);
+  // Keep the graph as a single packed blob in wasm memory:
+  // [nodes header + node metas][choice metas]
+  const blobPtr = exports.uqm_alloc(nodesSize + choicesSize);
+  const nodesPtr = blobPtr;
+  const choicesPtr = blobPtr + nodesSize;
 
   const mem = new DataView(exports.memory.buffer);
 
@@ -70,7 +84,7 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
     mem.setUint32(nodesPtr + 8 + nodeIdx * 8 + 4, node.choices.length, true);
 
     for (const choice of node.choices) {
-      const base = choicesPtr + choiceCursor * 18;
+      const base = choicesPtr + choiceCursor * graph.choiceStrideBytes;
 
       const nextIdx = choice.nextNodeId ? (graph.nodeIdToIndex.get(choice.nextNodeId) ?? -1) : -1;
       mem.setInt32(base + 0, nextIdx, true);
@@ -100,27 +114,58 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
       mem.setInt16(base + 10, reqFaction, true);
       mem.setInt16(base + 12, reqMin, true);
 
-      let revealMask = 0;
+      let revealLo = 0;
+      let revealHi = 0;
       if (choice.revealsInfo) {
         const bit = graph.secretToBit.get(choice.revealsInfo);
-        if (bit !== undefined) revealMask = 1 << bit;
+        if (bit !== undefined) {
+          if (bit < 32) revealLo = 1 << bit;
+          else revealHi = 1 << (bit - 32);
+        }
       }
-      mem.setUint32(base + 14, revealMask >>> 0, true);
+      mem.setUint32(base + 14, revealLo >>> 0, true);
+      if (graph.choiceStrideBytes >= 22) {
+        mem.setUint32(base + 18, revealHi >>> 0, true);
+      }
 
       choiceCursor++;
     }
   }
 
-  exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
+  if (exports.uqm_conv_set_graph_blob) {
+    exports.uqm_conv_set_graph_blob(blobPtr);
+  } else {
+    exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
+  }
 }
 
-function secretsMaskFromKnown(knownSecrets: string[], secretToBit: Map<string, number>): number {
-  let mask = 0;
+function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string, number>): { lo: number; hi: number } {
+  let lo = 0;
+  let hi = 0;
+
   for (const s of knownSecrets) {
     const bit = secretToBit.get(s);
-    if (bit !== undefined) mask |= 1 << bit;
+    if (bit === undefined) continue;
+
+    if (bit < 32) lo |= 1 << bit;
+    else hi |= 1 << (bit - 32);
   }
-  return mask >>> 0;
+
+  return { lo: lo >>> 0, hi: hi >>> 0 };
+}
+
+function secretsFromMask(graph: CompiledGraph, lo: number, hi: number): Set<string> {
+  const out = new Set<string>();
+
+  for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+    const isSet = bit < 32 ? ((lo >>> bit) & 1) === 1 : ((hi >>> (bit - 32)) & 1) === 1;
+    if (!isSet) continue;
+
+    const s = graph.bitToSecret[bit];
+    if (s) out.add(s);
+  }
+
+  return out;
 }
 
 function applyChoiceUsingWasm(
@@ -143,17 +188,27 @@ function applyChoiceUsingWasm(
   const rep1 = prev.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
   const rep2 = prev.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
 
-  const secrets = secretsMaskFromKnown(prev.knownSecrets, graph.secretToBit);
+  const secretsMask = secretsMask64FromKnown(prev.knownSecrets, graph.secretToBit);
 
   const exp = uqm.exports;
-  exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secrets);
+  if (graph.secretBitCapacity > 32 && exp.uqm_conv_reset64) {
+    exp.uqm_conv_reset64(nodeIdx, rep0, rep1, rep2, secretsMask.lo, secretsMask.hi);
+  } else {
+    exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secretsMask.lo);
+  }
 
-  if (exp.uqm_conv_choice_is_locked(localIdx) && !overrideLocked) {
+  const locked = exp.uqm_conv_choice_is_locked(localIdx) === 1;
+  if (locked && !overrideLocked) {
     // Enforce locks at the engine level too.
     return prev;
   }
 
-  const nextNodeIdx = exp.uqm_conv_choose(localIdx);
+  if (locked && overrideLocked && !exp.uqm_conv_choose_force) {
+    // If the runtime doesn't support bypassing locks in WASM, fall back to TS.
+    return null;
+  }
+
+  const nextNodeIdx = locked && overrideLocked ? exp.uqm_conv_choose_force!(localIdx) : exp.uqm_conv_choose(localIdx);
 
   // `-1` can mean either "end conversation" or "invalid". Disambiguate using the
   // TS node id on the choice; if the choice expects a next node but wasm returned
@@ -178,7 +233,33 @@ function applyChoiceUsingWasm(
     return f;
   });
 
-  const newSecrets = choice.revealsInfo ? [...prev.knownSecrets, choice.revealsInfo] : prev.knownSecrets;
+  const prevExpected = secretsFromMask(graph, secretsMask.lo >>> 0, secretsMask.hi >>> 0);
+
+  const secretsLo = exp.uqm_conv_get_secrets_lo ? exp.uqm_conv_get_secrets_lo() : exp.uqm_conv_get_secrets();
+  const secretsHi = exp.uqm_conv_get_secrets_hi ? exp.uqm_conv_get_secrets_hi() : 0;
+
+  const expected = secretsFromMask(graph, secretsLo >>> 0, secretsHi >>> 0);
+
+  const newlyLearned: string[] = [];
+  for (const s of expected) {
+    if (!prevExpected.has(s)) newlyLearned.push(s);
+  }
+
+  // Keep external secrets (e.g. "override") and keep order stable for secrets represented
+  // in the wasm mask.
+  const ordered: string[] = prev.knownSecrets.filter(s => {
+    if (!graph.secretToBit.has(s)) return true;
+    return expected.has(s);
+  });
+
+  // Ensure we didn't drop any secrets represented in the mask.
+  for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+    const s = graph.bitToSecret[bit];
+    if (!s) continue;
+    if (expected.has(s) && !ordered.includes(s)) ordered.push(s);
+  }
+
+  const newSecrets = [...new Set(ordered)];
 
   // Check events (same logic as TS engine)
   const newEvents = prev.events.map(event => {
@@ -201,7 +282,7 @@ function applyChoiceUsingWasm(
     ...prev.log,
     `> ${choice.text}`,
     ...triggeredEvents.map(e => `⚡ Event: ${e.title} — ${e.description}`),
-    ...(choice.revealsInfo ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
+    ...newlyLearned.map(s => `🔍 Secret learned: ${s}`),
   ];
 
   const nextTurnNumber = prev.turnNumber + 1;
@@ -261,7 +342,15 @@ function applyChoiceUsingWasm(
  * (next node, reputation deltas, choice locks) to WASM.
  */
 export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): ConversationEngine {
-  const graph = compileGraph();
+  const supports64 =
+    typeof uqm.exports.uqm_conv_reset64 === 'function' &&
+    typeof uqm.exports.uqm_conv_get_secrets_lo === 'function' &&
+    typeof uqm.exports.uqm_conv_get_secrets_hi === 'function';
+
+  const secretBitCapacity = supports64 ? 64 : 32;
+  const choiceStrideBytes = 22;
+
+  const graph = compileGraph(secretBitCapacity, choiceStrideBytes);
   writeGraphToWasm(uqm, graph);
 
   return {
@@ -272,6 +361,130 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
       if (next) return next;
       // Safe fallback (should be rare)
       return tsConversationEngine.applyChoice(prev, choice);
+    },
+    getChoiceLockedFlags(state) {
+      if (!state.currentDialogue) return null;
+      if (state.knownSecrets.includes('override')) return state.currentDialogue.choices.map(() => false);
+
+      const nodeIdx = graph.nodeIdToIndex.get(state.currentDialogue.id);
+      if (nodeIdx === undefined) return null;
+
+      const rep0 = state.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
+      const rep1 = state.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
+      const rep2 = state.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
+
+      const secretsMask = secretsMask64FromKnown(state.knownSecrets, graph.secretToBit);
+
+      const exp = uqm.exports;
+      if (graph.secretBitCapacity > 32 && exp.uqm_conv_reset64) {
+        exp.uqm_conv_reset64(nodeIdx, rep0, rep1, rep2, secretsMask.lo, secretsMask.hi);
+      } else {
+        exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secretsMask.lo);
+      }
+
+      const count = state.currentDialogue.choices.length;
+
+      if (exp.uqm_conv_get_locked_choices_lo && exp.uqm_conv_get_locked_choices_hi) {
+        const lo = exp.uqm_conv_get_locked_choices_lo() >>> 0;
+        const hi = exp.uqm_conv_get_locked_choices_hi() >>> 0;
+
+        return state.currentDialogue.choices.map((_, i) => {
+          if (i < 32) return ((lo >>> i) & 1) === 1;
+          if (i < 64) return ((hi >>> (i - 32)) & 1) === 1;
+          // If a node ever exceeds 64 choices (unlikely), fall back to per-choice calls.
+          return exp.uqm_conv_choice_is_locked(i) === 1;
+        });
+      }
+
+      const lockedFlags: boolean[] = new Array(count);
+      for (let i = 0; i < count; i++) lockedFlags[i] = exp.uqm_conv_choice_is_locked(i) === 1;
+      return lockedFlags;
+    },
+    getChoiceUiHints(state): ChoiceUiHint[] | null {
+      if (!state.currentDialogue) return null;
+
+      const nodeIdx = graph.nodeIdToIndex.get(state.currentDialogue.id);
+      if (nodeIdx === undefined) return null;
+
+      const rep0 = state.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
+      const rep1 = state.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
+      const rep2 = state.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
+
+      const secretsMask = secretsMask64FromKnown(state.knownSecrets, graph.secretToBit);
+
+      const exp = uqm.exports;
+      if (graph.secretBitCapacity > 32 && exp.uqm_conv_reset64) {
+        exp.uqm_conv_reset64(nodeIdx, rep0, rep1, rep2, secretsMask.lo, secretsMask.hi);
+      } else {
+        exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secretsMask.lo);
+      }
+
+      let lockedFlags: boolean[];
+      if (state.knownSecrets.includes('override')) {
+        lockedFlags = state.currentDialogue.choices.map(() => false);
+      } else if (exp.uqm_conv_get_locked_choices_lo && exp.uqm_conv_get_locked_choices_hi) {
+        const lo = exp.uqm_conv_get_locked_choices_lo() >>> 0;
+        const hi = exp.uqm_conv_get_locked_choices_hi() >>> 0;
+        lockedFlags = state.currentDialogue.choices.map((_, i) => {
+          if (i < 32) return ((lo >>> i) & 1) === 1;
+          if (i < 64) return ((hi >>> (i - 32)) & 1) === 1;
+          return exp.uqm_conv_choice_is_locked(i) === 1;
+        });
+      } else {
+        lockedFlags = state.currentDialogue.choices.map((_, i) => exp.uqm_conv_choice_is_locked(i) === 1);
+      }
+
+      const canReadMeta =
+        typeof exp.uqm_conv_choice_get_req_faction === 'function' &&
+        typeof exp.uqm_conv_choice_get_req_min === 'function' &&
+        typeof exp.uqm_conv_choice_get_d0 === 'function' &&
+        typeof exp.uqm_conv_choice_get_d1 === 'function' &&
+        typeof exp.uqm_conv_choice_get_d2 === 'function' &&
+        typeof exp.uqm_conv_choice_get_reveal_lo === 'function' &&
+        typeof exp.uqm_conv_choice_get_reveal_hi === 'function';
+
+      return state.currentDialogue.choices.map((choice, i) => {
+        if (!canReadMeta) {
+          return {
+            locked: lockedFlags[i] ?? false,
+            requiredReputation: choice.requiredReputation ?? null,
+            effects: choice.effects,
+            revealsInfo: choice.revealsInfo ?? null,
+          };
+        }
+
+        const reqFaction = exp.uqm_conv_choice_get_req_faction!(i);
+        const reqMin = exp.uqm_conv_choice_get_req_min!(i);
+        const reqFactionId = reqFaction >= 0 ? factionIdFromIndex(reqFaction) : null;
+
+        const effects: ChoiceUiHint['effects'] = [];
+        const d0 = exp.uqm_conv_choice_get_d0!(i);
+        const d1 = exp.uqm_conv_choice_get_d1!(i);
+        const d2 = exp.uqm_conv_choice_get_d2!(i);
+        if (d0) effects.push({ factionId: 'iron-pact', reputationChange: d0 });
+        if (d1) effects.push({ factionId: 'verdant-court', reputationChange: d1 });
+        if (d2) effects.push({ factionId: 'ember-throne', reputationChange: d2 });
+
+        const revealLo = exp.uqm_conv_choice_get_reveal_lo!(i) >>> 0;
+        const revealHi = exp.uqm_conv_choice_get_reveal_hi!(i) >>> 0;
+
+        let revealInfo: string | null = null;
+        if (revealLo !== 0 || revealHi !== 0) {
+          for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+            const isSet = bit < 32 ? ((revealLo >>> bit) & 1) === 1 : ((revealHi >>> (bit - 32)) & 1) === 1;
+            if (!isSet) continue;
+            revealInfo = graph.bitToSecret[bit] ?? null;
+            break;
+          }
+        }
+
+        return {
+          locked: lockedFlags[i] ?? false,
+          requiredReputation: reqFactionId ? { factionId: reqFactionId, min: reqMin } : null,
+          effects,
+          revealsInfo: revealInfo,
+        };
+      });
     },
   };
 }

@@ -48,7 +48,8 @@
   (global $conv_rep0 (mut i32) (i32.const 0))
   (global $conv_rep1 (mut i32) (i32.const 0))
   (global $conv_rep2 (mut i32) (i32.const 0))
-  (global $conv_secrets (mut i32) (i32.const 0))
+  (global $conv_secrets_lo (mut i32) (i32.const 0))
+  (global $conv_secrets_hi (mut i32) (i32.const 0))
 
   ;; Graph pointers
   (global $graph_nodes (mut i32) (i32.const 0))
@@ -212,12 +213,42 @@
     (global.set $conv_rep0 (local.get $rep0))
     (global.set $conv_rep1 (local.get $rep1))
     (global.set $conv_rep2 (local.get $rep2))
-    (global.set $conv_secrets (local.get $secrets))
+    (global.set $conv_secrets_lo (local.get $secrets))
+    (global.set $conv_secrets_hi (i32.const 0))
+  )
+
+  (func (export "uqm_conv_reset64")
+    (param $startNode i32) (param $rep0 i32) (param $rep1 i32) (param $rep2 i32) (param $secretsLo i32) (param $secretsHi i32)
+    (global.set $conv_currentNode (local.get $startNode))
+    (global.set $conv_rep0 (local.get $rep0))
+    (global.set $conv_rep1 (local.get $rep1))
+    (global.set $conv_rep2 (local.get $rep2))
+    (global.set $conv_secrets_lo (local.get $secretsLo))
+    (global.set $conv_secrets_hi (local.get $secretsHi))
   )
 
   (func (export "uqm_conv_set_graph") (param $nodesPtr i32) (param $choicesPtr i32)
     (global.set $graph_nodes (local.get $nodesPtr))
     (global.set $graph_choices (local.get $choicesPtr))
+  )
+
+  (func (export "uqm_conv_set_graph_blob") (param $blobPtr i32)
+    (local $nodeCount i32)
+    (local $nodesSize i32)
+
+    (if (i32.eqz (local.get $blobPtr))
+      (then
+        (global.set $graph_nodes (i32.const 0))
+        (global.set $graph_choices (i32.const 0))
+        (return)
+      )
+    )
+
+    (local.set $nodeCount (i32.load (local.get $blobPtr)))
+    (local.set $nodesSize (i32.add (i32.const 8) (i32.mul (local.get $nodeCount) (i32.const 8))))
+
+    (global.set $graph_nodes (local.get $blobPtr))
+    (global.set $graph_choices (i32.add (local.get $blobPtr) (local.get $nodesSize)))
   )
 
   (func (export "uqm_conv_get_current_node") (result i32)
@@ -238,7 +269,15 @@
   )
 
   (func (export "uqm_conv_get_secrets") (result i32)
-    (global.get $conv_secrets)
+    (global.get $conv_secrets_lo)
+  )
+
+  (func (export "uqm_conv_get_secrets_lo") (result i32)
+    (global.get $conv_secrets_lo)
+  )
+
+  (func (export "uqm_conv_get_secrets_hi") (result i32)
+    (global.get $conv_secrets_hi)
   )
 
   (func $uqm_conv_get_choice_count (export "uqm_conv_get_choice_count") (result i32)
@@ -248,6 +287,108 @@
       (then (return (i32.const 0)))
     )
     (i32.load offset=4 (local.get $nodePtr))
+  )
+
+  (func $conv_choice_ptr (param $localIdx i32) (result i32)
+    (local $nodePtr i32)
+    (local $choicesBase i32)
+    (local $firstChoice i32)
+    (local $choiceCount i32)
+    (local $absChoice i32)
+    (local $totalChoices i32)
+
+    (local.set $nodePtr (call $conv_node_meta_ptr))
+    (if (i32.eqz (local.get $nodePtr))
+      (then (return (i32.const 0)))
+    )
+
+    (local.set $choicesBase (global.get $graph_choices))
+    (if (i32.eqz (local.get $choicesBase))
+      (then (return (i32.const 0)))
+    )
+
+    (if (i32.lt_s (local.get $localIdx) (i32.const 0))
+      (then (return (i32.const 0)))
+    )
+
+    (local.set $firstChoice (i32.load (local.get $nodePtr)))
+    (local.set $choiceCount (i32.load offset=4 (local.get $nodePtr)))
+
+    (if (i32.ge_u (local.get $localIdx) (local.get $choiceCount))
+      (then (return (i32.const 0)))
+    )
+
+    (local.set $absChoice (i32.add (local.get $firstChoice) (local.get $localIdx)))
+
+    (local.set $totalChoices (i32.load offset=4 (global.get $graph_nodes)))
+    (if (i32.ge_u (local.get $absChoice) (local.get $totalChoices))
+      (then (return (i32.const 0)))
+    )
+
+    (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22)))
+  )
+
+  (func (export "uqm_conv_choice_get_req_faction") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const -1)))
+    )
+    (i32.load16_s offset=10 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_req_min") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load16_s offset=12 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_d0") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load16_s offset=4 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_d1") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load16_s offset=6 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_d2") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load16_s offset=8 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_reveal_lo") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load offset=14 (local.get $choicePtr))
+  )
+
+  (func (export "uqm_conv_choice_get_reveal_hi") (param $localIdx i32) (result i32)
+    (local $choicePtr i32)
+    (local.set $choicePtr (call $conv_choice_ptr (local.get $localIdx)))
+    (if (i32.eqz (local.get $choicePtr))
+      (then (return (i32.const 0)))
+    )
+    (i32.load offset=18 (local.get $choicePtr))
   )
 
   (func $uqm_conv_choice_is_locked (export "uqm_conv_choice_is_locked") (param $localIdx i32) (result i32)
@@ -286,7 +427,7 @@
       (then (return (i32.const 1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 18))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
 
     (local.set $reqFaction (i32.load16_s offset=10 (local.get $choicePtr)))
     (local.set $reqMin (i32.load16_s offset=12 (local.get $choicePtr)))
@@ -318,6 +459,62 @@
     (i32.const 0)
   )
 
+  (func (export "uqm_conv_get_locked_choices_lo") (result i32)
+    (local $count i32)
+    (local $i i32)
+    (local $mask i32)
+
+    (local.set $count (call $uqm_conv_get_choice_count))
+    (local.set $mask (i32.const 0))
+    (local.set $i (i32.const 0))
+
+    (block $done
+      (loop $loop
+        (br_if $done (i32.ge_u (local.get $i) (local.get $count)))
+        (br_if $done (i32.ge_u (local.get $i) (i32.const 32)))
+
+        (if (call $uqm_conv_choice_is_locked (local.get $i))
+          (then
+            (local.set $mask (i32.or (local.get $mask) (i32.shl (i32.const 1) (local.get $i))))
+          )
+        )
+
+        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+        (br $loop)
+      )
+    )
+
+    (local.get $mask)
+  )
+
+  (func (export "uqm_conv_get_locked_choices_hi") (result i32)
+    (local $count i32)
+    (local $i i32)
+    (local $mask i32)
+
+    (local.set $count (call $uqm_conv_get_choice_count))
+    (local.set $mask (i32.const 0))
+    (local.set $i (i32.const 32))
+
+    (block $done
+      (loop $loop
+        (br_if $done (i32.ge_u (local.get $i) (local.get $count)))
+        (br_if $done (i32.ge_u (local.get $i) (i32.const 64)))
+
+        (if (call $uqm_conv_choice_is_locked (local.get $i))
+          (then
+            (local.set $mask (i32.or (local.get $mask) (i32.shl (i32.const 1) (i32.sub (local.get $i) (i32.const 32)))))
+          )
+        )
+
+        (local.set $i (i32.add (local.get $i) (i32.const 1)))
+        (br $loop)
+      )
+    )
+
+    (local.get $mask)
+  )
+
   (func (export "uqm_conv_choose") (param $localIdx i32) (result i32)
     (local $nodePtr i32)
     (local $choicesBase i32)
@@ -329,7 +526,8 @@
     (local $d0 i32)
     (local $d1 i32)
     (local $d2 i32)
-    (local $reveal i32)
+    (local $revealLo i32)
+    (local $revealHi i32)
 
     (if (call $uqm_conv_choice_is_locked (local.get $localIdx))
       (then (return (i32.const -1)))
@@ -346,18 +544,82 @@
       (then (return (i32.const -1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 18))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
 
     (local.set $nextNode (i32.load (local.get $choicePtr)))
     (local.set $d0 (i32.load16_s offset=4 (local.get $choicePtr)))
     (local.set $d1 (i32.load16_s offset=6 (local.get $choicePtr)))
     (local.set $d2 (i32.load16_s offset=8 (local.get $choicePtr)))
-    (local.set $reveal (i32.load offset=14 (local.get $choicePtr)))
+    (local.set $revealLo (i32.load offset=14 (local.get $choicePtr)))
+    (local.set $revealHi (i32.load offset=18 (local.get $choicePtr)))
 
     (global.set $conv_rep0 (i32.add (global.get $conv_rep0) (local.get $d0)))
     (global.set $conv_rep1 (i32.add (global.get $conv_rep1) (local.get $d1)))
     (global.set $conv_rep2 (i32.add (global.get $conv_rep2) (local.get $d2)))
-    (global.set $conv_secrets (i32.or (global.get $conv_secrets) (local.get $reveal)))
+    (global.set $conv_secrets_lo (i32.or (global.get $conv_secrets_lo) (local.get $revealLo)))
+    (global.set $conv_secrets_hi (i32.or (global.get $conv_secrets_hi) (local.get $revealHi)))
+
+    (global.set $conv_currentNode (local.get $nextNode))
+    (local.get $nextNode)
+  )
+
+  (func (export "uqm_conv_choose_force") (param $localIdx i32) (result i32)
+    (local $nodePtr i32)
+    (local $choicesBase i32)
+    (local $firstChoice i32)
+    (local $choiceCount i32)
+    (local $absChoice i32)
+    (local $totalChoices i32)
+    (local $choicePtr i32)
+    (local $nextNode i32)
+    (local $d0 i32)
+    (local $d1 i32)
+    (local $d2 i32)
+    (local $revealLo i32)
+    (local $revealHi i32)
+
+    (if (i32.lt_s (local.get $localIdx) (i32.const 0))
+      (then (return (i32.const -1)))
+    )
+
+    (local.set $nodePtr (call $conv_node_meta_ptr))
+    (if (i32.eqz (local.get $nodePtr))
+      (then (return (i32.const -1)))
+    )
+
+    (local.set $choicesBase (global.get $graph_choices))
+    (if (i32.eqz (local.get $choicesBase))
+      (then (return (i32.const -1)))
+    )
+
+    (local.set $firstChoice (i32.load (local.get $nodePtr)))
+    (local.set $choiceCount (i32.load offset=4 (local.get $nodePtr)))
+
+    (if (i32.ge_u (local.get $localIdx) (local.get $choiceCount))
+      (then (return (i32.const -1)))
+    )
+
+    (local.set $absChoice (i32.add (local.get $firstChoice) (local.get $localIdx)))
+
+    (local.set $totalChoices (i32.load offset=4 (global.get $graph_nodes)))
+    (if (i32.ge_u (local.get $absChoice) (local.get $totalChoices))
+      (then (return (i32.const -1)))
+    )
+
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
+
+    (local.set $nextNode (i32.load (local.get $choicePtr)))
+    (local.set $d0 (i32.load16_s offset=4 (local.get $choicePtr)))
+    (local.set $d1 (i32.load16_s offset=6 (local.get $choicePtr)))
+    (local.set $d2 (i32.load16_s offset=8 (local.get $choicePtr)))
+    (local.set $revealLo (i32.load offset=14 (local.get $choicePtr)))
+    (local.set $revealHi (i32.load offset=18 (local.get $choicePtr)))
+
+    (global.set $conv_rep0 (i32.add (global.get $conv_rep0) (local.get $d0)))
+    (global.set $conv_rep1 (i32.add (global.get $conv_rep1) (local.get $d1)))
+    (global.set $conv_rep2 (i32.add (global.get $conv_rep2) (local.get $d2)))
+    (global.set $conv_secrets_lo (i32.or (global.get $conv_secrets_lo) (local.get $revealLo)))
+    (global.set $conv_secrets_hi (i32.or (global.get $conv_secrets_hi) (local.get $revealHi)))
 
     (global.set $conv_currentNode (local.get $nextNode))
     (local.get $nextNode)

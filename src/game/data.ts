@@ -35,11 +35,11 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'opening',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'You arrive at the Concord Hall as the last light of dusk bleeds through the stained glass. Commander Aldric Vane of the Iron Pact studies you with cold, appraising eyes.\n\n"So. The envoy arrives. I had expected someone... taller. No matter. The border dispute with the Verdant Court has claimed seventeen lives this moon. We need resolution—or we need war. Which do you bring?"',
+    text: 'Dusk darkens the stained glass as you step into Concord Hall. Commander Aldric Vane of the Iron Pact looks you over like a quartermaster—quick, unsentimental.\n\n"So. The envoy." His gaze flicks up and down. "I\'d pictured someone taller. No matter. Seventeen bodies this moon on the Greenmarch. We don\'t get another month of speeches. We get an answer. Treaty… or war. Which did you ride in on?"',
     choices: [
       {
         id: 'diplomatic',
-        text: '"I bring words first, Commander. Let us hear all sides before steel speaks."',
+        text: '"Words first, Commander. Let me hear the Court before we bare steel."',
         effects: [
           { factionId: 'iron-pact', reputationChange: -5 },
           { factionId: 'verdant-court', reputationChange: 10 },
@@ -48,7 +48,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
       {
         id: 'pragmatic',
-        text: '"I bring what serves the realm. Tell me what the Iron Pact truly needs."',
+        text: '"Tell me what you need—without the ceremony."',
         effects: [
           { factionId: 'iron-pact', reputationChange: 10 },
         ],
@@ -56,7 +56,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
       {
         id: 'information',
-        text: '"Before I answer—what aren\'t you telling me about those seventeen deaths?"',
+        text: '"Seventeen dead is a story. Who\'s shaping it?"',
         effects: [
           { factionId: 'iron-pact', reputationChange: -3 },
           { factionId: 'ember-throne', reputationChange: 5 },
@@ -70,7 +70,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'aldric-diplomatic',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'Vane\'s jaw tightens. "Words." He spits the concept like ash. "The Verdant Court has had months of words. Their druids weave excuses like spider silk—beautiful, fragile, and ultimately meant to trap."\n\nHe leans forward. "But very well. If you wish to hear their honeyed lies, the Court\'s emissary waits in the eastern wing. A woman called Thessaly. Careful with that one—she sees more than she shows."',
+    text: 'Vane\'s jaw tightens. "Words." He says it like an insult. "The Verdant Court has had months to talk. Months to explain why my patrols keep coming back with fewer men."\n\nHe leans forward. "But very well. If you want their side, the Court\'s emissary is in the eastern wing. A woman called Thessaly. Watch her. She listens more than she speaks."',
     choices: [
       {
         id: 'ask-about-thessaly',
@@ -123,7 +123,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'aldric-suspicious',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'Vane goes still. Very still. The kind of stillness that precedes either honesty or violence.\n\n"You\'re perceptive. I\'ll grant you that." He lowers his voice. "Three of the dead bore wounds no druid spell could make. Burns. Deep, alchemical burns. The Verdant Court doesn\'t use fire magic—it\'s anathema to their creed."\n\nHis eyes narrow. "Someone wants this war. Someone who profits from chaos between the Pact and the Court. I have my suspicions, but no proof."',
+    text: 'Vane goes still.\n\n"You\'re perceptive. I\'ll grant you that." He lowers his voice. "Three of the dead bore wounds no druid spell could make. Burns. Deep, alchemical burns. The Verdant Court doesn\'t use fire magic—it\'s anathema to their creed."\n\nHis eyes narrow. "Someone wants this war. Someone who profits from chaos between the Pact and the Court. I have suspicions, but no proof."',
     choices: [
       {
         id: 'name-ember',
@@ -151,11 +151,11 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'thessaly-intro',
     speaker: 'Emissary Thessaly',
     speakerFaction: 'verdant-court',
-    text: 'The eastern wing smells of moss and old rain. Thessaly sits cross-legged on the stone floor, eyes closed, vines crawling lazily up the walls around her. She speaks without opening her eyes.\n\n"The envoy. I felt your footsteps three corridors ago. The stones here remember everything—every boot, every blade, every lie spoken in these halls."\n\nHer eyes open—green as deep forest canopy. "Tell me, envoy. Did the Commander send you to negotiate, or to spy?"',
+    text: 'The eastern wing smells of moss and old rain. Thessaly sits cross-legged on the stone floor, eyes closed, vines looping up the walls like idle handwriting. She speaks without opening her eyes.\n\n"The envoy." A pause—just long enough to make you feel measured. "I heard you three corridors ago. These stones remember everything. Every boot. Every blade. Every lie."\n\nHer eyes open—green as deep canopy after rain. "So tell me. Did Vane send you to bargain… or to count my secrets?"',
     choices: [
       {
         id: 'honest',
-        text: '"Neither. I came of my own accord. The realm needs peace more than any faction needs victory."',
+        text: '"Neither. I came because the next funeral will be on all our hands."',
         effects: [
           { factionId: 'verdant-court', reputationChange: 15 },
           { factionId: 'iron-pact', reputationChange: -5 },
@@ -164,7 +164,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
       {
         id: 'strategic',
-        text: '"He told me to be careful with you. That you see more than you show. Was he right?"',
+        text: '"He warned me about you. Said you notice what others miss. Is that true?"',
         effects: [
           { factionId: 'verdant-court', reputationChange: 5 },
         ],
@@ -239,7 +239,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'investigation-start',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: '"Careful investigation." Vane considers this. "Very well. You have the bearing of someone who finishes what they start. The Concord Hall has emissaries from all three factions. Speak to whom you wish. But remember—every question you ask reveals what you\'re looking for."\n\nHe turns back to the window. "In this game, envoy, information is the sharpest blade."',
+    text: '"Careful investigation." Vane considers this. "Very well. You have the bearing of someone who finishes what they start. The Concord Hall has emissaries from all three factions. Speak to whom you wish. But remember—every question you ask reveals what you\'re looking for."\n\nHe turns back to the window. "In this hall, information matters more than steel."',
     choices: [
       {
         id: 'begin',
@@ -254,35 +254,35 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'concord-hub': {
     id: 'concord-hub',
     speaker: 'Narrator',
-    text: 'Concord Hall is a maze of velvet corridors and stone alcoves built for whispers. The three delegations have taken their corners of the building like wary wolves around a single carcass.\n\nIf you want an ending that isn\'t drenched in ash, you\'ll need leverage, trust, or both.',
+    text: 'Concord Hall was built for discretion. Velvet muffles footsteps. Stone carries voices farther than it should. Every corridor has someone listening.\n\nThe delegations keep to their corners, watching one another, waiting for you to blink first.\n\nIf you want peace, you\'ll have to earn it: with proof, with favors, or by giving someone a way to back down without humiliation.',
     choices: [
       {
         id: 'hub-aldric',
-        text: 'Return to Commander Vane and press him for concessions.',
+        text: 'Go back to Vane and see what he\'ll give when pressed.',
         effects: [],
         nextNodeId: 'aldric-followup',
       },
       {
         id: 'hub-thessaly',
-        text: 'Seek Thessaly again in the eastern wing and test the Court\'s true aims.',
+        text: 'Find Thessaly in the eastern wing and read what she\'s not saying.',
         effects: [],
         nextNodeId: 'thessaly-followup',
       },
       {
         id: 'hub-renzo',
-        text: 'Request an audience with Renzo of the Ember Throne.',
+        text: 'Ask for Renzo. Merchants always want something.',
         effects: [],
         nextNodeId: 'renzo-intro',
       },
       {
         id: 'hub-archives',
-        text: 'Search the Concord Hall archives for old treaties and inconvenient truths.',
+        text: 'Dig through the archives for treaties, loopholes, and rot.',
         effects: [],
         nextNodeId: 'hall-archives',
       },
       {
         id: 'hub-summit',
-        text: 'Convene all three emissaries for a formal summit.',
+        text: 'Call the summit and force everyone into the same light.',
         effects: [],
         nextNodeId: 'summit-start',
       },
@@ -292,7 +292,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'aldric-map-confront',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'For a heartbeat Vane says nothing. Then the map case snaps shut under his fist.\n\n"Neutral ground," he repeats, as if tasting the words for poison. "So Ember redraws ink and sells us a war."\n\nHis gaze hardens. "If Renzo truly forged this, I want his hands on the table. But I won\'t swing without witnesses. Not here."',
+    text: 'For a heartbeat Vane says nothing. Then the map case snaps shut under his fist.\n\n"Neutral ground," he repeats. "So Ember redraws ink and sells us a war."\n\nHis gaze hardens. "If Renzo forged this, I want him in the chamber. But I won\'t swing without witnesses. Not here."',
     choices: [
       {
         id: 'map-demand-renzo',
@@ -313,7 +313,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
       {
         id: 'map-hold-leverage',
-        text: 'Keep the knowledge close. A forged line is a blade—best drawn when it cuts deepest.',
+        text: 'Keep quiet for now. This could be leverage later.',
         effects: [
           { factionId: 'ember-throne', reputationChange: 3 },
         ],
@@ -355,6 +355,14 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'aldric-burns-details',
       },
       {
+        id: 'aldric-dispatches',
+        text: '"Show me the patrol orders. Who put them on that route?"',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'iron-dispatch-audit',
+      },
+      {
         id: 'aldric-back',
         text: 'Step back and pursue other leads first.',
         effects: [],
@@ -366,7 +374,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'aldric-council-proposal',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'Vane\'s expression twists—part irritation, part reluctant interest.\n\n"Shared ground means shared weakness. But it also means no one strangles the trade veins." He exhales through his nose. "If the Court agrees to unweave their wards from the Pass and stop treating every soldier like a desecrator... I can listen."\n\n"Bring me something I can hold them to."',
+    text: 'Vane\'s expression twists—part irritation, part reluctant interest.\n\n"Shared ground means shared risk. But it also keeps the route open." He exhales through his nose. "If the Court can stop treating every patrol like a raid, I can listen."\n\n"Bring me something I can hold them to."',
     choices: [
       {
         id: 'council-archives',
@@ -417,7 +425,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'aldric-burns-details',
     speaker: 'Commander Aldric Vane',
     speakerFaction: 'iron-pact',
-    text: 'Vane opens a cloth-wrapped bundle on the table: a splinter of blackened wood, edges bubbled like wax.\n\n"From a watchtower. The men were found with their throats intact—no vines, no thorns, no choking pollen. Just heat. And this." He taps the char. "Smells like sulfur and coin."\n\n"If you find a ledger, a name, a single merchant seal tied to those patrol routes... I\'ll have proof enough."',
+    text: 'Vane opens a cloth-wrapped bundle on the table: a splinter of blackened wood, edges bubbled like wax.\n\n"From a watchtower. The men were found with their throats intact—no vines, no thorns, no choking pollen. Just heat. And this." He taps the char. "Smells like sulfur. And someone paid for it."\n\n"If you find a ledger, a name, a single merchant seal tied to those patrol routes... I\'ll have proof enough."',
     choices: [
       {
         id: 'burns-renzo',
@@ -444,11 +452,44 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
     ],
   },
+  'iron-dispatch-audit': {
+    id: 'iron-dispatch-audit',
+    speaker: 'Quartermaster Ilya Rook',
+    speakerFaction: 'iron-pact',
+    text: 'Vane waves you through a side door into a cramped records room. A quartermaster waits with a stack of forms and a face that says she has stopped being surprised.\n\n"This is the patrol order," Rook says, tapping the reroute slip. "Iron seal. Correct phrasing. The problem is the docket number."\n\nShe slides another sheet across. "That number belongs to an Ember filing with the Hall clerks. Grain storage. East wing. Last week. Someone reused it so a clerk would wave the order through without reading."\n\nRook meets your eyes. "Either Ember\'s paperwork was copied, or someone wants you to think it was."',
+    choices: [
+      {
+        id: 'dispatch-archives',
+        text: 'Take the docket number to the archives and confirm the filing.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'hall-archives',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
+      },
+      {
+        id: 'dispatch-renzo',
+        text: 'Go to Renzo and ask why Hall docket numbers are showing up on Iron orders.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-intro',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
+      },
+      {
+        id: 'dispatch-back',
+        text: 'Return to the hall and keep pulling threads.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
+      },
+    ],
+  },
   'thessaly-honest': {
     id: 'thessaly-honest',
     speaker: 'Emissary Thessaly',
     speakerFaction: 'verdant-court',
-    text: 'Thessaly watches you with a patient, unsettling stillness.\n\n"Peace," she says, "is not a word. It is a practice. And practices require sacrifice."\n\nA vine curls around her wrist like a bracelet. "Ask, envoy. If you\'re truly here for the realm, I\'ll answer what I can."',
+    text: 'Thessaly watches you with a patient, unsettling stillness.\n\n"Peace takes work," she says. "It takes restraint. It takes people giving up what they\'re sure they\'re owed."\n\nA vine curls around her wrist. "Ask, envoy. If you\'re truly here for the realm, I\'ll answer what I can."',
     choices: [
       {
         id: 'honest-pass',
@@ -519,7 +560,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'thessaly-followup',
     speaker: 'Emissary Thessaly',
     speakerFaction: 'verdant-court',
-    text: 'Thessaly is exactly where you left her, as if time only moves when she allows it.\n\n"Back again," she says. "Either you\'ve found a truth, or you\'ve found a lie worth chasing."',
+    text: 'Thessaly is exactly where you left her.\n\n"Back again," she says. "Either you\'ve found a truth, or you\'ve found a lie worth chasing."',
     choices: [
       {
         id: 'followup-pass',
@@ -579,8 +620,81 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'thessaly-oath',
       },
       {
+        id: 'pass-inspect',
+        text: '"Show me one of the warding points. If someone is tampering with it, I need to see how."',
+        effects: [
+          { factionId: 'verdant-court', reputationChange: 3 },
+        ],
+        nextNodeId: 'verdant-ward-inspection',
+      },
+      {
         id: 'pass-back',
         text: 'Return to the hall and gather more leverage.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+      },
+    ],
+  },
+  'verdant-ward-inspection': {
+    id: 'verdant-ward-inspection',
+    speaker: 'Emissary Thessaly',
+    speakerFaction: 'verdant-court',
+    text: 'Thessaly leads you down a servants\' stair to an older part of the hall. The air is cooler here. The stone feels damp even when it\'s dry.\n\nShe stops at an archway marked with shallow carvings. "One of the anchors," she says. "A place the ward holds onto."\n\nIn the mortar line, someone has scraped at the seam. Grey grit clings to the groove, and it smells faintly of sulfur.\n\n"Furnace salt," Thessaly says. "Not ours. It doesn\'t shatter a ward. It makes it slip for a short time. Long enough for someone to pass and leave you arguing about who was allowed to be there."',
+    choices: [
+      {
+        id: 'ward-sample',
+        text: 'Take a pinch of the grit and bring it to Vane.',
+        effects: [
+          { factionId: 'verdant-court', reputationChange: 3 },
+          { factionId: 'iron-pact', reputationChange: 3 },
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'aldric-ward-sample',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+      {
+        id: 'ward-renzo',
+        text: 'Go to Renzo and ask why his merchants trade in furnace salt.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-intro',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+      {
+        id: 'ward-back',
+        text: 'Return to the hall and keep digging.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+    ],
+  },
+  'aldric-ward-sample': {
+    id: 'aldric-ward-sample',
+    speaker: 'Commander Aldric Vane',
+    speakerFaction: 'iron-pact',
+    text: 'Vane pinches the grey grit between thumb and forefinger and smells it.\n\n"Sulfur," he says. He glances at the charred splinter on the table. "Same family."\n\nHe looks up. "That isn\'t druid work. It\'s sabotage."\n\nHe calls toward the door. "No retaliation patrols without my mark. Not until the summit." Then, quieter, to you: "Now give me the name that bought this."',
+    choices: [
+      {
+        id: 'sample-archives',
+        text: 'Take the lead to the archives and look for the matching docket.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'hall-archives',
+      },
+      {
+        id: 'sample-renzo',
+        text: 'Go back to Renzo. If his ledgers mention furnace salt, you want to see it.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-ledger-request',
+      },
+      {
+        id: 'sample-back',
+        text: 'Return to the hall and keep pulling threads.',
         effects: [],
         nextNodeId: 'concord-hub',
       },
@@ -685,7 +799,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-intro',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo receives you in a chamber that smells of spiced wine and polished brass. He is handsome in the way a dagger can be handsome—made to fit the hand, made to disappear.\n\n"Envoy," he says warmly, as if you\'ve been friends for years. "You\'re standing at the edge of a very expensive misunderstanding. Allow me to make it profitable for everyone involved."',
+    text: 'Renzo receives you in a chamber that smells of spiced wine and polished brass. He is polished and careful, dressed to look harmless.\n\n"Envoy," he says warmly, as if you\'ve been friends for years. "You\'re standing at the edge of a very expensive misunderstanding. Allow me to make it profitable for everyone involved."',
     choices: [
       {
         id: 'renzo-hear',
@@ -724,7 +838,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-offer',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo produces a parchment already bearing Ember seals.\n\n"A simple charter," he says. "The Greenmarch Pass becomes a neutral exchange administered by Ember accountants. The Iron Pact gets predictable tariffs. The Verdant Court gets assurances no one digs into their sacred mud. You get to claim you prevented a war."\n\nHis smile never touches his eyes. "And Ember, of course, gets stability. Stability is our favorite flavor of profit."',
+    text: 'Renzo produces a parchment already bearing Ember seals.\n\n"A simple charter," he says. "The Greenmarch Pass becomes a neutral exchange administered by Ember accountants. The Iron Pact gets predictable tariffs. The Verdant Court gets assurances no one digs into their sacred mud. You get to claim you prevented a war."\n\nHis smile never touches his eyes. "And Ember gets stability. Stability is profitable."',
     choices: [
       {
         id: 'offer-sign',
@@ -759,7 +873,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-deflect',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo laughs, soft as velvet.\n\n"If I could kill seventeen people by arriving at a city three days early, I\'d charge more for my carriage." He spreads his hands. "I\'m guilty only of being where coin is moving."\n\n"But I\'m happy to ease your suspicions—provided you\'re willing to treat this like business."',
+    text: 'Renzo laughs quietly.\n\n"If I could kill seventeen people by arriving at a city three days early, I\'d charge more for my carriage." He spreads his hands. "I\'m guilty only of being where coin is moving."\n\n"But I\'m happy to ease your suspicions—provided you\'re willing to treat this like business."',
     choices: [
       {
         id: 'deflect-press',
@@ -789,7 +903,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-ledger-request',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo\'s smile tightens. Still a smile—just smaller.\n\n"Ledgers are intimate," he says. "Like prayers. But perhaps we can compromise." He gestures, and a guard places a thick book on the table. The ink is fresh. Some pages are newer than others.\n\n"You may read," Renzo says. "Not copy. Not take. Trust is a currency too."',
+    text: 'Renzo\'s smile tightens. Still a smile—just smaller.\n\n"Ledgers are private," he says. "But perhaps we can compromise." He gestures, and a guard places a thick book on the table. The ink is fresh. Some pages are newer than others.\n\n"You may read," Renzo says. "Not copy. Not take. Trust is a currency too."',
     choices: [
       {
         id: 'ledger-steal',
@@ -809,6 +923,14 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'renzo-ledger-bought',
       },
       {
+        id: 'ledger-manifests',
+        text: '"Numbers are only half the story. Show me the manifests that match these entries."',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: 3 },
+        ],
+        nextNodeId: 'ember-manifest-check',
+      },
+      {
         id: 'ledger-back',
         text: 'Leave before you owe him anything else.',
         effects: [],
@@ -816,10 +938,41 @@ export const dialogueTree: Record<string, DialogueNode> = {
       },
     ],
   },
+  'ember-manifest-check': {
+    id: 'ember-manifest-check',
+    speaker: 'Trade Consul Renzo',
+    speakerFaction: 'ember-throne',
+    text: 'Renzo watches you read for a minute, then taps the table. "If you want to understand the code, look at what moved."\n\nA clerk brings a slimmer manifest book. Most lines are ordinary: lamp oil, wax, spiced wine. One entry catches your eye. A margin mark matches the symbol you saw beside "furnace salts." The item is written as "road salt." Next to it is a Concord Hall docket number.\n\nRenzo follows your gaze. "We file through the Hall like everyone else," he says. "The realm runs on paperwork."',
+    choices: [
+      {
+        id: 'manifest-archives',
+        text: 'Take the docket number to the archives and see who filed it.',
+        effects: [],
+        nextNodeId: 'hall-archives',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+      },
+      {
+        id: 'manifest-quartermaster',
+        text: 'Take the docket number to Iron records and compare it to the patrol order.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'iron-dispatch-audit',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+      },
+      {
+        id: 'manifest-back',
+        text: 'Return to the hall with the docket number in your head.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+      },
+    ],
+  },
   'renzo-ledger-stolen': {
     id: 'renzo-ledger-stolen',
     speaker: 'Narrator',
-    text: 'A spilled goblet. A momentary flare of temper. While eyes turn, your hand moves.\n\nLater, in the quiet of a corridor, you unfold the copied pages. The entries are coded—but a repeated symbol appears beside payments made to "ash-cloaks" and "furnace salts". Dates align with the first border deaths.\n\nIt\'s not a confession. It\'s a trail.',
+    text: 'A spilled goblet. A momentary flare of temper. While eyes turn, your hand moves.\n\nLater, in the quiet of a corridor, you unfold the copied pages. The entries are coded—but a repeated symbol appears beside payments made to "ash-cloaks" and "furnace salts". The dates match the first border deaths.\n\nIt doesn\'t name the killers, but it ties Ember coin to the same week the border began to burn.',
     choices: [
       {
         id: 'stolen-to-aldric',
@@ -884,7 +1037,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-charter-signed',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo rolls the charter and seals it again, satisfied.\n\n"Excellent," he says. "Now all that remains is to convince the others that the leash is a ribbon."\n\nHe offers you a ring of lacquered obsidian. It\'s too heavy for decoration. It\'s a mark.',
+    text: 'Renzo rolls the charter and seals it again, satisfied.\n\n"Excellent," he says. "Now we just have to convince the others it\'s in their interest."\n\nHe offers you a ring of lacquered obsidian. It\'s too heavy for decoration. It\'s a mark.',
     choices: [
       {
         id: 'charter-summit',
@@ -941,7 +1094,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'thessaly-ledger',
     speaker: 'Emissary Thessaly',
     speakerFaction: 'verdant-court',
-    text: 'Thessaly\'s eyes move over the pages without changing expression.\n\n"Coin always thinks it can speak more loudly than blood," she murmurs. A vine brushes the paper, and for a moment the ink seems to darken. "These marks are mercenary cant. I\'ve seen it before—always near places merchants want turned to ash."\n\n"If we expose this, Ember will strike back. If we keep it quiet, we can steer Aldric away from war."',
+    text: 'Thessaly\'s eyes move over the pages without changing expression.\n\n"These marks are mercenary cant," she murmurs. A vine brushes the paper, and for a moment the ink seems to darken. "I\'ve seen it before—always near places merchants want softened up."\n\n"If we expose this, Ember will strike back. If we keep it quiet, we can steer Aldric away from war."',
     choices: [
       {
         id: 'tledger-summit',
@@ -966,7 +1119,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'hall-archives': {
     id: 'hall-archives',
     speaker: 'Narrator',
-    text: 'The Concord Hall archives are colder than the rest of the building, as if the stone itself wants to preserve what was written here.\n\nYou find dusty binders of treaties, border surveys, and oath-logs. One parchment stands out: a brittle accord signed by all three factions generations ago.\n\nIt names the Greenmarch Pass as "neutral hinge-ground"—shared stewardship, shared tolls, and a clause written in Verdant hand about "keeping the binding unbroken."',
+    text: 'The Concord Hall archives are colder than the rest of the building.\n\nYou find dusty binders of treaties, border surveys, and oath-logs. One parchment stands out: a brittle accord signed by all three factions generations ago.\n\nIt names the Greenmarch Pass as "neutral hinge-ground"—shared stewardship, shared tolls, and a clause written in Verdant hand about "keeping the binding unbroken."',
     choices: [
       {
         id: 'archives-summit',
@@ -1041,7 +1194,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'thessaly-archives',
     speaker: 'Emissary Thessaly',
     speakerFaction: 'verdant-court',
-    text: 'Thessaly\'s fingers hover above the Verdant script like a priest above a relic.\n\n"Yes," she whispers. "They wrote it down in a language even soldiers would respect."\n\nShe meets your eyes. "If you want peace, use this to bind Aldric to restraint. If you want power, use it to bind him to you."',
+    text: 'Thessaly\'s fingers hover above the Verdant script for a long moment.\n\n"Yes," she whispers. "They wrote it down in a language even soldiers would respect."\n\nShe meets your eyes. "If you want peace, use this to bind Aldric to restraint. If you want power, use it to bind him to you."',
     choices: [
       {
         id: 'tarchives-summit',
@@ -1064,7 +1217,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
     id: 'renzo-archives',
     speaker: 'Trade Consul Renzo',
     speakerFaction: 'ember-throne',
-    text: 'Renzo\'s eyes shine when he sees the old accord.\n\n"A lovely artifact," he says, as if admiring jewelry. "And artifacts are best kept safe."\n\nHe tucks it away with a carefulness that feels like theft. "You\'ve made a sensible choice, envoy. The realm will thank you later, when it forgets how it was saved."',
+    text: 'Renzo\'s eyes shine when he sees the old accord.\n\n"A lovely artifact," he says, turning it carefully in his hands. "And artifacts are best kept safe."\n\nHe tucks it away with practiced care. "You\'ve made a sensible choice, envoy. The realm will thank you later—after it forgets how it was saved."',
     choices: [
       {
         id: 'rarchives-back',
@@ -1077,7 +1230,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'summit-start': {
     id: 'summit-start',
     speaker: 'Narrator',
-    text: 'At your request, the three emissaries gather in the central chamber beneath the stained glass. Aldric stands like a drawn sword. Thessaly sits as if she\'s rooted to the stone. Renzo smiles like a man who\'s already counted the profits.\n\nAll three look to you. In this moment, your words become policy. Your silence becomes a sentence.',
+    text: 'At your request, the three emissaries gather in the central chamber beneath the stained glass. Aldric stands rigid, a hand never far from his sword. Thessaly sits still, watching every face. Renzo smiles as if the outcome is already a number on a page.\n\nAll three look to you. In this moment, your words become policy. Your silence becomes a sentence.',
     choices: [
       {
         id: 'summit-compact',
@@ -1140,7 +1293,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'ending-greenmarch-compact': {
     id: 'ending-greenmarch-compact',
     speaker: 'Narrator',
-    text: 'The argument is ugly before it is beautiful. Aldric demands patrol rights. Thessaly demands the binding remain untouched. Renzo demands that someone—anyone—pay Ember for its "troubles."\n\nYou hold to the old accord until it becomes a new one. The Pass is declared neutral hinge-ground once more. A joint council is formed: iron to keep bandits out, verdant to keep the binding intact, and ember merchants allowed passage under transparent tolls rather than private tariffs.\n\nIt isn\'t friendship. But it is peace that can survive a winter.',
+    text: 'The argument is hard and public. Aldric demands patrol rights. Thessaly demands the binding remain untouched. Renzo demands that someone—anyone—pay Ember for its "troubles."\n\nYou hold to the old accord until it becomes a new one. The Pass is declared neutral hinge-ground once more. A joint council is formed: iron to keep bandits out, verdant to keep the binding intact, and ember merchants allowed passage under transparent tolls rather than private tariffs.\n\nNo one leaves satisfied. But the border quiets, and the agreement has a chance to survive the winter.',
     choices: [
       {
         id: 'end-compact',
@@ -1166,7 +1319,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'ending-verdant-seal': {
     id: 'ending-verdant-seal',
     speaker: 'Narrator',
-    text: 'Thessaly\'s answer is not applause. It\'s action.\n\nWithin a week, the Greenmarch Pass is a living labyrinth of thorn and mist. The binding beneath it is reinforced, the wards thick enough to turn a regiment around in circles until their supplies run dry.\n\nThe Iron Pact does not forgive humiliation. Ember does not forgive a closed trade route. But the border deaths stop, and something ancient under the stone settles back into its sleep.\n\nPeace, here, is a locked door.',
+    text: 'Thessaly does not applaud. She acts.\n\nWithin a week, the Greenmarch Pass is a living labyrinth of thorn and mist. The binding beneath it is reinforced, the wards thick enough to turn a regiment around in circles until their supplies run dry.\n\nThe Iron Pact does not forgive humiliation. Ember does not forgive a closed trade route. But the border deaths stop, and something ancient under the stone settles back into its sleep.\n\nPeace holds, but it is kept behind a locked door.',
     choices: [
       {
         id: 'end-verdant',
@@ -1179,7 +1332,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'ending-ember-web': {
     id: 'ending-ember-web',
     speaker: 'Narrator',
-    text: 'Renzo\'s smile widens as the others protest. You call it "neutral arbitration". Aldric calls it a leash. Thessaly calls it blight.\n\nBut the charter is signed, and coin has its own gravity. The Pass opens—not to soldiers or druids, but to auditors. Ember ledgers become the law, and every wagon crossing Greenmarch pays a toll that turns into influence, influence into obligation.\n\nThe killings end, not because justice was done, but because the conflict has been purchased and repackaged.\n\nEmber did not win a war. It acquired one.',
+    text: 'Renzo\'s smile widens as the others protest. You call it "neutral arbitration". Aldric calls it a leash. Thessaly calls it blight.\n\nBut the charter is signed. The Pass opens—not to soldiers or druids, but to auditors. Ember ledgers become the law, and every wagon crossing Greenmarch pays a toll that turns into influence, influence into obligation.\n\nThe killings end because the incentives change. The people who paid for the murders no longer need them.',
     choices: [
       {
         id: 'end-ember',
@@ -1192,7 +1345,7 @@ export const dialogueTree: Record<string, DialogueNode> = {
   'ending-embers-fall': {
     id: 'ending-embers-fall',
     speaker: 'Narrator',
-    text: 'The room turns cold when you lay the proof on the table. Forged borders. Alchemical burns. Mercenary payments hidden behind coded entries.\n\nRenzo\'s charm fails him for the first time; it cracks like lacquer. Aldric reaches for steel. Thessaly reaches for roots.\n\nYou do not let it become a murder. You make it a judgment. Ember\'s delegation is expelled, their trade privileges suspended until a full inquiry.\n\nThe Iron Pact and Verdant Court do not become friends. But they stop being puppets, and sometimes that\'s the first step toward peace.',
+    text: 'The room turns cold when you lay the proof on the table. Forged borders. Alchemical burns. Mercenary payments hidden behind coded entries.\n\nRenzo\'s charm fails him for the first time; it cracks like lacquer. Aldric reaches for steel. Thessaly reaches for roots.\n\nYou stop it from becoming a murder. You turn it into a judgment. Ember\'s delegation is expelled, their trade privileges suspended until a full inquiry.\n\nThe Iron Pact and Verdant Court do not become friends. But they stop being used, and sometimes that\'s the first step toward peace.',
     choices: [
       {
         id: 'end-embers-fall',

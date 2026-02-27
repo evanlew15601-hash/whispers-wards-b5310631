@@ -35,4 +35,50 @@ describe('dialogueTree integrity', () => {
       }
     }
   });
+
+  it('stays within the WASM secret limit (64 unique revealsInfo strings)', () => {
+    const secrets = new Set<string>();
+
+    for (const node of Object.values(dialogueTree)) {
+      for (const choice of node.choices) {
+        if (choice.revealsInfo) secrets.add(choice.revealsInfo);
+      }
+    }
+
+    // The minimal WASM conversation core stores secrets in a 64-bit mask (lo/hi u32).
+    // The TS engine can exceed that, but the WASM engine will ignore extras.
+    expect(secrets.size).toBeLessThanOrEqual(64);
+  });
+
+  it('keeps new investigative nodes reachable from the opening', () => {
+    const startId = 'opening';
+
+    const visited = new Set<string>();
+    const queue: string[] = [startId];
+
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+
+      const node = dialogueTree[id];
+      if (!node) continue;
+
+      for (const choice of node.choices) {
+        if (!choice.nextNodeId) continue;
+        queue.push(choice.nextNodeId);
+      }
+    }
+
+    const required = [
+      'iron-dispatch-audit',
+      'verdant-ward-inspection',
+      'aldric-ward-sample',
+      'ember-manifest-check',
+    ];
+
+    for (const id of required) {
+      expect(visited.has(id)).toBe(true);
+    }
+  });
 });

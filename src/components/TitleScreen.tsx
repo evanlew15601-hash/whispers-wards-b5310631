@@ -13,6 +13,8 @@ interface TitleScreenProps {
 }
 
 const TitleScreen = ({ onStart, onLoad, slots = [], onContinue }: TitleScreenProps) => {
+  useAmbience('title');
+
   const [uqmStatus, setUqmStatus] = useState<string>('Conversation core: loading…');
 
   const mostRecentSlotId = useMemo(() => {

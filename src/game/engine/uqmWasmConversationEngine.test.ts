@@ -5,6 +5,7 @@ import { tsConversationEngine } from './tsConversationEngine';
 import type { UqmWasmRuntime } from './uqmWasmRuntime';
 import { loadUqmMinimalWasmExports } from '@/test/uqmWasmTestUtils';
 import { dialogueTree } from '../data';
+import { isChoiceLocked } from '../choiceLocks';
 
 function makeRuntime(exports: Awaited<ReturnType<typeof loadUqmMinimalWasmExports>>): UqmWasmRuntime {
   const encoder = new TextEncoder();
@@ -114,5 +115,100 @@ describe('uqmWasmConversationEngine', () => {
     expect(repWasm).toEqual(repTs);
 
     expect(nextWasmOverride.knownSecrets).toEqual(nextTsOverride.knownSecrets);
+  });
+
+  it('matches tsConversationEngine transitions through new investigative nodes', () => {
+    const wasmEngine = createUqmWasmConversationEngine(uqmRuntime);
+
+    const start = tsConversationEngine.startNewGame();
+    const seeded = { ...start, rngSeed: 123456789 };
+
+    // Jump to a node where we added a new investigative option.
+    const atFollowup = {
+      ...seeded,
+      currentDialogue: dialogueTree['aldric-followup'],
+    };
+
+    const auditChoice = atFollowup.currentDialogue!.choices.find(c => c.id === 'aldric-dispatches');
+    if (!auditChoice) throw new Error('Expected aldric-dispatches choice');
+
+    const nextTs = tsConversationEngine.applyChoice(atFollowup, auditChoice);
+    const nextWasm = wasmEngine.applyChoice(atFollowup, auditChoice);
+
+    expect(nextWasm.currentDialogue?.id).toBe(nextTs.currentDialogue?.id);
+    expect(nextWasm.turnNumber).toBe(nextTs.turnNumber);
+    expect(nextWasm.rngSeed).toBe(nextTs.rngSeed);
+    expect(nextWasm.world).toEqual(nextTs.world);
+
+    const repTs = Object.fromEntries(nextTs.factions.map(f => [f.id, f.reputation] as const));
+    const repWasm = Object.fromEntries(nextWasm.factions.map(f => [f.id, f.reputation] as const));
+    expect(repWasm).toEqual(repTs);
+
+    expect(nextWasm.knownSecrets).toEqual(nextTs.knownSecrets);
+
+    const backChoice = nextTs.currentDialogue?.choices?.find(c => c.id === 'dispatch-back');
+    if (!backChoice) throw new Error('Expected dispatch-back choice');
+
+    const nextTs2 = tsConversationEngine.applyChoice(nextTs, backChoice);
+    const nextWasm2 = wasmEngine.applyChoice(nextWasm, backChoice);
+
+    expect(nextWasm2.currentDialogue?.id).toBe(nextTs2.currentDialogue?.id);
+    expect(nextWasm2.turnNumber).toBe(nextTs2.turnNumber);
+    expect(nextWasm2.rngSeed).toBe(nextTs2.rngSeed);
+    expect(nextWasm2.world).toEqual(nextTs2.world);
+
+    const repTs2 = Object.fromEntries(nextTs2.factions.map(f => [f.id, f.reputation] as const));
+    const repWasm2 = Object.fromEntries(nextWasm2.factions.map(f => [f.id, f.reputation] as const));
+    expect(repWasm2).toEqual(repTs2);
+
+    expect(nextWasm2.knownSecrets).toEqual(nextTs2.knownSecrets);
+
+    // Secret learning is now derived from the WASM secrets mask; ensure the log reflects that too.
+    const learnedInTs = nextTs.log.filter(l => l.startsWith('🔍 Secret learned: '));
+    const learnedInWasm = nextWasm.log.filter(l => l.startsWith('🔍 Secret learned: '));
+    expect(learnedInWasm).toEqual(learnedInTs);
+  });
+
+  it('keeps lock behavior aligned (UI/TS helper vs engine execution) for summit choices', () => {
+    const wasmEngine = createUqmWasmConversationEngine(uqmRuntime);
+
+    const start = tsConversationEngine.startNewGame();
+    const base = {
+      ...start,
+      currentDialogue: dialogueTree['summit-start'],
+      rngSeed: 123456789,
+      factions: start.factions.map(f => ({ ...f, reputation: 0 })),
+    };
+
+    expect(wasmEngine.getChoiceLockedFlags?.(base)).toEqual(tsConversationEngine.getChoiceLockedFlags?.(base));
+    expect(wasmEngine.getChoiceUiHints?.(base)).toEqual(tsConversationEngine.getChoiceUiHints?.(base));
+
+    for (const choice of base.currentDialogue!.choices) {
+      const helperLocked = isChoiceLocked(choice, base.factions, base.knownSecrets);
+      const nextTs = tsConversationEngine.applyChoice(base, choice);
+      const nextWasm = wasmEngine.applyChoice(base, choice);
+
+      if (helperLocked) {
+        expect(nextTs).toBe(base);
+        expect(nextWasm).toBe(base);
+      } else {
+        expect(nextTs).not.toBe(base);
+        expect(nextWasm).not.toBe(base);
+      }
+    }
+
+    const withOverride = { ...base, knownSecrets: ['override'] };
+    const lockedChoice = withOverride.currentDialogue!.choices.find(c => c.requiredReputation);
+    if (!lockedChoice) throw new Error('Expected a reputation-locked choice');
+
+    expect(isChoiceLocked(lockedChoice, withOverride.factions, withOverride.knownSecrets)).toBe(false);
+    expect(wasmEngine.getChoiceLockedFlags?.(withOverride)).toEqual(withOverride.currentDialogue!.choices.map(() => false));
+
+    const nextTs = tsConversationEngine.applyChoice(withOverride, lockedChoice);
+    const nextWasm = wasmEngine.applyChoice(withOverride, lockedChoice);
+
+    expect(nextTs).not.toBe(withOverride);
+    expect(nextWasm).not.toBe(withOverride);
+    expect(nextWasm.currentDialogue?.id).toBe(nextTs.currentDialogue?.id);
   });
 });

@@ -7,6 +7,8 @@ const Index = () => {
   const {
     state,
     engineLabel,
+    choiceLockedFlags,
+    choiceUiHints,
     startGame,
     openLoadScreen,
     backToTitle,
@@ -56,6 +58,8 @@ const Index = () => {
       deleteSlot={deleteSlot}
       exitToTitle={backToTitle}
       enterPendingEncounter={enterPendingEncounter}
+      choiceLockedFlags={choiceLockedFlags}
+      choiceUiHints={choiceUiHints}
     />
   );
 };

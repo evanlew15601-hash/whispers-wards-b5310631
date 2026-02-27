@@ -226,10 +226,11 @@ uqm_line_fit_chars (const char *str, uint32_t maxWidth)
  *     i16 d0, d1, d2;
  *     i16 reqFaction;
  *     i16 reqMin;
- *     u32 revealSecretMask;
+ *     u32 revealSecretMaskLo;
+ *     u32 revealSecretMaskHi;
  *   }
  *
- * ChoiceMeta is treated as packed (18 bytes).
+ * ChoiceMeta is treated as packed (22 bytes).
  */
 
 #if defined(__wasm__) || defined(__wasm32__) || defined(__wasm64__) || defined(__EMSCRIPTEN__)
@@ -240,7 +241,8 @@ uqm_line_fit_chars (const char *str, uint32_t maxWidth)
 
 static int32_t conv_currentNode;
 static int32_t conv_rep[3];
-static uint32_t conv_secretsMask;
+static uint32_t conv_secretsLo;
+static uint32_t conv_secretsHi;
 
 static uint32_t conv_nodesPtr;
 static uint32_t conv_choicesPtr;
@@ -299,7 +301,7 @@ conv_graph_node_meta_ptr (uint32_t nodeIdx)
 static uint32_t
 conv_graph_choice_ptr (uint32_t choiceIdx)
 {
-	return conv_choicesPtr + choiceIdx * 18u;
+	return conv_choicesPtr + choiceIdx * 22u;
 }
 
 static uint32_t
@@ -325,21 +327,19 @@ conv_current_node_choice_count (void)
 }
 
 static uint32_t
-conv_choice_is_locked_internal (int32_t localIdx)
+conv_choice_ptr_local (int32_t localIdx)
 {
 	uint32_t uLocalIdx;
 	uint32_t nodeMetaPtr;
 	uint32_t firstChoice;
 	uint32_t choiceCount;
 	uint32_t absChoice;
-	uint32_t choicePtr;
-	int32_t reqFaction;
-	int32_t reqMin;
-	int32_t rep;
 
 	if (!conv_is_current_node_valid () || conv_choicesPtr == 0)
-		return 1;
+		return 0;
 
+	if (localIdx < 0)
+		return 0;
 	uLocalIdx = (uint32_t) localIdx;
 
 	nodeMetaPtr = conv_graph_node_meta_ptr ((uint32_t) conv_currentNode);
@@ -347,12 +347,26 @@ conv_choice_is_locked_internal (int32_t localIdx)
 	choiceCount = load_u32_le (nodeMetaPtr + 4u);
 
 	if (uLocalIdx >= choiceCount)
-		return 1;
+		return 0;
 
 	absChoice = firstChoice + uLocalIdx;
 	if (absChoice >= conv_graph_total_choices ())
+		return 0;
+
+	return conv_graph_choice_ptr (absChoice);
+}
+
+static uint32_t
+conv_choice_is_locked_internal (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	int32_t reqFaction;
+	int32_t reqMin;
+	int32_t rep;
+
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0)
 		return 1;
-	choicePtr = conv_graph_choice_ptr (absChoice);
 
 	reqFaction = load_i16_le (choicePtr + 10u);
 	reqMin = load_i16_le (choicePtr + 12u);
@@ -382,7 +396,21 @@ uqm_conv_reset (int32_t startNode, int32_t rep0, int32_t rep1, int32_t rep2,
 	conv_rep[0] = rep0;
 	conv_rep[1] = rep1;
 	conv_rep[2] = rep2;
-	conv_secretsMask = secrets;
+	conv_secretsLo = secrets;
+	conv_secretsHi = 0u;
+}
+
+UQM_WASM_EXPORT("uqm_conv_reset64")
+void
+uqm_conv_reset64 (int32_t startNode, int32_t rep0, int32_t rep1, int32_t rep2,
+		uint32_t secretsLo, uint32_t secretsHi)
+{
+	conv_currentNode = startNode;
+	conv_rep[0] = rep0;
+	conv_rep[1] = rep1;
+	conv_rep[2] = rep2;
+	conv_secretsLo = secretsLo;
+	conv_secretsHi = secretsHi;
 }
 
 UQM_WASM_EXPORT("uqm_conv_set_graph")
@@ -391,6 +419,27 @@ uqm_conv_set_graph (uint32_t nodesPtr, uint32_t choicesPtr)
 {
 	conv_nodesPtr = nodesPtr;
 	conv_choicesPtr = choicesPtr;
+}
+
+UQM_WASM_EXPORT("uqm_conv_set_graph_blob")
+void
+uqm_conv_set_graph_blob (uint32_t blobPtr)
+{
+	uint32_t nodeCount;
+	uint32_t nodesSize;
+
+	if (blobPtr == 0u)
+	{
+		conv_nodesPtr = 0u;
+		conv_choicesPtr = 0u;
+		return;
+	}
+
+	nodeCount = load_u32_le (blobPtr + 0u);
+	nodesSize = 8u + nodeCount * 8u;
+
+	conv_nodesPtr = blobPtr;
+	conv_choicesPtr = blobPtr + nodesSize;
 }
 
 UQM_WASM_EXPORT("uqm_conv_get_current_node")
@@ -413,7 +462,21 @@ UQM_WASM_EXPORT("uqm_conv_get_secrets")
 uint32_t
 uqm_conv_get_secrets (void)
 {
-	return conv_secretsMask;
+	return conv_secretsLo;
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_secrets_lo")
+uint32_t
+uqm_conv_get_secrets_lo (void)
+{
+	return conv_secretsLo;
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_secrets_hi")
+uint32_t
+uqm_conv_get_secrets_hi (void)
+{
+	return conv_secretsHi;
 }
 
 UQM_WASM_EXPORT("uqm_conv_get_choice_count")
@@ -423,11 +486,126 @@ uqm_conv_get_choice_count (void)
 	return conv_current_node_choice_count ();
 }
 
+UQM_WASM_EXPORT("uqm_conv_choice_get_req_faction")
+int32_t
+uqm_conv_choice_get_req_faction (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return -1;
+	return load_i16_le (choicePtr + 10u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_req_min")
+int32_t
+uqm_conv_choice_get_req_min (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0;
+	return load_i16_le (choicePtr + 12u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_d0")
+int32_t
+uqm_conv_choice_get_d0 (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0;
+	return load_i16_le (choicePtr + 4u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_d1")
+int32_t
+uqm_conv_choice_get_d1 (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0;
+	return load_i16_le (choicePtr + 6u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_d2")
+int32_t
+uqm_conv_choice_get_d2 (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0;
+	return load_i16_le (choicePtr + 8u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_reveal_lo")
+uint32_t
+uqm_conv_choice_get_reveal_lo (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0u;
+	return load_u32_le (choicePtr + 14u);
+}
+
+UQM_WASM_EXPORT("uqm_conv_choice_get_reveal_hi")
+uint32_t
+uqm_conv_choice_get_reveal_hi (int32_t localIdx)
+{
+	uint32_t choicePtr;
+	choicePtr = conv_choice_ptr_local (localIdx);
+	if (choicePtr == 0u)
+		return 0u;
+	return load_u32_le (choicePtr + 18u);
+}
+
 UQM_WASM_EXPORT("uqm_conv_choice_is_locked")
 int32_t
 uqm_conv_choice_is_locked (int32_t localIdx)
 {
 	return (int32_t) conv_choice_is_locked_internal (localIdx);
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_locked_choices_lo")
+uint32_t
+uqm_conv_get_locked_choices_lo (void)
+{
+	uint32_t count;
+	uint32_t mask;
+	uint32_t i;
+
+	count = conv_current_node_choice_count ();
+	mask = 0u;
+
+	for (i = 0u; i < count && i < 32u; i++)	{
+		if (conv_choice_is_locked_internal ((int32_t) i))
+			mask |= 1u << i;
+	}
+
+	return mask;
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_locked_choices_hi")
+uint32_t
+uqm_conv_get_locked_choices_hi (void)
+{
+	uint32_t count;
+	uint32_t mask;
+	uint32_t i;
+
+	count = conv_current_node_choice_count ();
+	mask = 0u;
+
+	for (i = 32u; i < count && i < 64u; i++)	{
+		if (conv_choice_is_locked_internal ((int32_t) i))
+			mask |= 1u << (i - 32u);
+	}
+
+	return mask;
 }
 
 UQM_WASM_EXPORT("uqm_conv_choose")
@@ -442,7 +620,8 @@ uqm_conv_choose (int32_t localIdx)
 	uint32_t choicePtr;
 	int32_t nextNode;
 	int32_t d0, d1, d2;
-	uint32_t reveal;
+	uint32_t revealLo;
+	uint32_t revealHi;
 
 	if (conv_choice_is_locked_internal (localIdx))
 		return -1;
@@ -464,12 +643,65 @@ uqm_conv_choose (int32_t localIdx)
 	d0 = load_i16_le (choicePtr + 4u);
 	d1 = load_i16_le (choicePtr + 6u);
 	d2 = load_i16_le (choicePtr + 8u);
-	reveal = load_u32_le (choicePtr + 14u);
+	revealLo = load_u32_le (choicePtr + 14u);
+	revealHi = load_u32_le (choicePtr + 18u);
 
 	conv_rep[0] += d0;
 	conv_rep[1] += d1;
 	conv_rep[2] += d2;
-	conv_secretsMask |= reveal;
+	conv_secretsLo |= revealLo;
+	conv_secretsHi |= revealHi;
+	conv_currentNode = nextNode;
+
+	return nextNode;
+}
+
+UQM_WASM_EXPORT("uqm_conv_choose_force")
+int32_t
+uqm_conv_choose_force (int32_t localIdx)
+{
+	uint32_t uLocalIdx;
+	uint32_t nodeMetaPtr;
+	uint32_t firstChoice;
+	uint32_t choiceCount;
+	uint32_t absChoice;
+	uint32_t choicePtr;
+	int32_t nextNode;
+	int32_t d0, d1, d2;
+	uint32_t revealLo;
+	uint32_t revealHi;
+
+	if (localIdx < 0)
+		return -1;
+
+	uLocalIdx = (uint32_t) localIdx;
+
+	nodeMetaPtr = conv_graph_node_meta_ptr ((uint32_t) conv_currentNode);
+	if (nodeMetaPtr == 0u)
+		return -1;
+
+	firstChoice = load_u32_le (nodeMetaPtr + 0u);
+	choiceCount = load_u32_le (nodeMetaPtr + 4u);
+	if (uLocalIdx >= choiceCount)
+		return -1;
+
+	absChoice = firstChoice + uLocalIdx;
+	if (absChoice >= conv_graph_total_choices ())
+		return -1;
+	choicePtr = conv_graph_choice_ptr (absChoice);
+
+	nextNode = load_i32_le (choicePtr + 0u);
+	d0 = load_i16_le (choicePtr + 4u);
+	d1 = load_i16_le (choicePtr + 6u);
+	d2 = load_i16_le (choicePtr + 8u);
+	revealLo = load_u32_le (choicePtr + 14u);
+	revealHi = load_u32_le (choicePtr + 18u);
+
+	conv_rep[0] += d0;
+	conv_rep[1] += d1;
+	conv_rep[2] += d2;
+	conv_secretsLo |= revealLo;
+	conv_secretsHi |= revealHi;
 	conv_currentNode = nextNode;
 
 	return nextNode;

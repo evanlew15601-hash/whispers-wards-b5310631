@@ -26,4 +26,16 @@ Vendored upstream code:
   - Vendored path: third_party/uqm/
   - Upstream license text: third_party/uqm/COPYING
 
+- ZzFXMicro sound synthesizer (MIT)
+  - Upstream project: ZzFX
+  - Upstream URL: https://github.com/KilledByAPixel/ZzFX
+  - Vendored path: src/audio/zzfx.ts
+  - Upstream license text: https://github.com/KilledByAPixel/ZzFX/blob/master/LICENSE
+
+- howler.js audio library (MIT)
+  - Upstream project: howler.js
+  - Upstream URL: https://github.com/goldfire/howler.js
+  - Vendored path: public/vendor/howler/howler.core.min.js
+  - Upstream license text: public/vendor/howler/LICENSE.md
+
 This repository does NOT include any UQM content (dialogue, voice, images, sounds, music, etc.).

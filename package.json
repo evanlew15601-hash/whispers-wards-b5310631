@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "fetch:uqm-upstream": "node scripts/ensure-uqm-upstream.mjs",
+    "fetch:ambience": "node scripts/fetch-ambience-assets.mjs",
     "build:uqm-wasm": "node scripts/build-uqm-minimal-wasm.mjs",
     "predev": "node scripts/build-uqm-minimal-wasm.mjs",
     "prebuild": "node scripts/build-uqm-minimal-wasm.mjs",

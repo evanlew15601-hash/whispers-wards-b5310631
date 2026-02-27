@@ -5,6 +5,7 @@ import { dialogueTree, initialEvents, initialFactions } from '../data';
 import { createInitialRngSeed, createInitialWorldState } from '../world';
 import { applyExpiredEncounterConsequence, parseEncounterResolutionChoiceId, resolveEncounter } from '../encounters';
 import { simulateWorldTurn } from '../simulation';
+import { isChoiceLocked } from '../choiceLocks';
 
 const OPENING_LOG_LINE = 'You arrive at the Concord Hall as envoy to the fractured realm...';
 
@@ -34,13 +35,8 @@ const startNewGame = (): GameState => {
 };
 
 const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
-  const overrideLocked = prev.knownSecrets.includes('override');
-  const repReq = choice.requiredReputation;
-  if (repReq && !overrideLocked) {
-    const rep = prev.factions.find(f => f.id === repReq.factionId)?.reputation ?? -Infinity;
-    if (rep < repReq.min) {
-      return prev;
-    }
+  if (isChoiceLocked(choice, prev.factions, prev.knownSecrets)) {
+    return prev;
   }
 
   const encounterPick = prev.pendingEncounter ? parseEncounterResolutionChoiceId(choice.id) : null;
@@ -192,6 +188,19 @@ export const tsConversationEngine: ConversationEngine = {
   createInitialState,
   startNewGame,
   applyChoice,
+  getChoiceLockedFlags(state) {
+    if (!state.currentDialogue) return null;
+    return state.currentDialogue.choices.map(choice => isChoiceLocked(choice, state.factions, state.knownSecrets));
+  },
+  getChoiceUiHints(state) {
+    if (!state.currentDialogue) return null;
+    return state.currentDialogue.choices.map(choice => ({
+      locked: isChoiceLocked(choice, state.factions, state.knownSecrets),
+      requiredReputation: choice.requiredReputation ?? null,
+      effects: choice.effects,
+      revealsInfo: choice.revealsInfo ?? null,
+    }));
+  },
 };
 
 export const TS_OPENING_LOG_LINE = OPENING_LOG_LINE;

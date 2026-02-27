@@ -154,9 +154,14 @@ export function useGameState() {
     });
   }, []);
 
+  const choiceLockedFlags = engineRef.current.getChoiceLockedFlags?.(state) ?? null;
+  const choiceUiHints = engineRef.current.getChoiceUiHints?.(state) ?? null;
+
   return {
     state,
     engineLabel,
+    choiceLockedFlags,
+    choiceUiHints,
     startGame,
     openLoadScreen,
     backToTitle,

@@ -64,12 +64,27 @@ function validateWasm(bytes) {
 
     if (!ok(['uqm_conv_reset', '_uqm_conv_reset'])) return false;
     if (!ok(['uqm_conv_set_graph', '_uqm_conv_set_graph'])) return false;
+    if (!ok(['uqm_conv_set_graph_blob', '_uqm_conv_set_graph_blob'])) return false;
     if (!ok(['uqm_conv_get_current_node', '_uqm_conv_get_current_node'])) return false;
     if (!ok(['uqm_conv_get_rep', '_uqm_conv_get_rep'])) return false;
     if (!ok(['uqm_conv_get_secrets', '_uqm_conv_get_secrets'])) return false;
+    if (!ok(['uqm_conv_get_secrets_lo', '_uqm_conv_get_secrets_lo'])) return false;
+    if (!ok(['uqm_conv_get_secrets_hi', '_uqm_conv_get_secrets_hi'])) return false;
+    if (!ok(['uqm_conv_reset64', '_uqm_conv_reset64'])) return false;
     if (!ok(['uqm_conv_get_choice_count', '_uqm_conv_get_choice_count'])) return false;
     if (!ok(['uqm_conv_choice_is_locked', '_uqm_conv_choice_is_locked'])) return false;
+    if (!ok(['uqm_conv_get_locked_choices_lo', '_uqm_conv_get_locked_choices_lo'])) return false;
+    if (!ok(['uqm_conv_get_locked_choices_hi', '_uqm_conv_get_locked_choices_hi'])) return false;
     if (!ok(['uqm_conv_choose', '_uqm_conv_choose'])) return false;
+    if (!ok(['uqm_conv_choose_force', '_uqm_conv_choose_force'])) return false;
+
+    if (!ok(['uqm_conv_choice_get_req_faction', '_uqm_conv_choice_get_req_faction'])) return false;
+    if (!ok(['uqm_conv_choice_get_req_min', '_uqm_conv_choice_get_req_min'])) return false;
+    if (!ok(['uqm_conv_choice_get_d0', '_uqm_conv_choice_get_d0'])) return false;
+    if (!ok(['uqm_conv_choice_get_d1', '_uqm_conv_choice_get_d1'])) return false;
+    if (!ok(['uqm_conv_choice_get_d2', '_uqm_conv_choice_get_d2'])) return false;
+    if (!ok(['uqm_conv_choice_get_reveal_lo', '_uqm_conv_choice_get_reveal_lo'])) return false;
+    if (!ok(['uqm_conv_choice_get_reveal_hi', '_uqm_conv_choice_get_reveal_hi'])) return false;
 
     return true;
   } catch {
@@ -79,13 +94,20 @@ function validateWasm(bytes) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
-// Skip if output is newer than sources.
+// Skip if output is newer than sources (but still validate it).
 try {
   const outStat = fs.statSync(outWasm);
   const newestSrc = newestMtimeMs([srcC, srcWat, __filename]);
   if (outStat.mtimeMs >= newestSrc) {
-    console.log(`[uqm-wasm] up-to-date: ${path.relative(root, outWasm)}`);
-    process.exit(0);
+    try {
+      const bytes = fs.readFileSync(outWasm);
+      if (validateWasm(bytes)) {
+        console.log(`[uqm-wasm] up-to-date: ${path.relative(root, outWasm)}`);
+        process.exit(0);
+      }
+    } catch {
+      // fall through and rebuild
+    }
   }
 } catch {
   // continue
@@ -110,12 +132,26 @@ for (const clang of clangCandidates) {
     '-Wl,--export=uqm_line_fit_chars',
     '-Wl,--export=uqm_conv_reset',
     '-Wl,--export=uqm_conv_set_graph',
+    '-Wl,--export=uqm_conv_set_graph_blob',
     '-Wl,--export=uqm_conv_get_current_node',
     '-Wl,--export=uqm_conv_get_rep',
     '-Wl,--export=uqm_conv_get_secrets',
+    '-Wl,--export=uqm_conv_get_secrets_lo',
+    '-Wl,--export=uqm_conv_get_secrets_hi',
+    '-Wl,--export=uqm_conv_reset64',
     '-Wl,--export=uqm_conv_get_choice_count',
     '-Wl,--export=uqm_conv_choice_is_locked',
+    '-Wl,--export=uqm_conv_get_locked_choices_lo',
+    '-Wl,--export=uqm_conv_get_locked_choices_hi',
     '-Wl,--export=uqm_conv_choose',
+    '-Wl,--export=uqm_conv_choose_force',
+    '-Wl,--export=uqm_conv_choice_get_req_faction',
+    '-Wl,--export=uqm_conv_choice_get_req_min',
+    '-Wl,--export=uqm_conv_choice_get_d0',
+    '-Wl,--export=uqm_conv_choice_get_d1',
+    '-Wl,--export=uqm_conv_choice_get_d2',
+    '-Wl,--export=uqm_conv_choice_get_reveal_lo',
+    '-Wl,--export=uqm_conv_choice_get_reveal_hi',
     '-Wl,--export-memory',
     '-Wl,--strip-all',
     '-o',
@@ -146,7 +182,7 @@ if (!built && commandExists('emcc')) {
     '-s',
     'ERROR_ON_UNDEFINED_SYMBOLS=1',
     '-s',
-    'EXPORTED_FUNCTIONS=["_uqm_alloc","_uqm_version_ptr","_uqm_version_len","_uqm_line_fit_chars","_uqm_conv_reset","_uqm_conv_set_graph","_uqm_conv_get_current_node","_uqm_conv_get_rep","_uqm_conv_get_secrets","_uqm_conv_get_choice_count","_uqm_conv_choice_is_locked","_uqm_conv_choose"]',
+    'EXPORTED_FUNCTIONS=["_uqm_alloc","_uqm_version_ptr","_uqm_version_len","_uqm_line_fit_chars","_uqm_conv_reset","_uqm_conv_reset64","_uqm_conv_set_graph","_uqm_conv_set_graph_blob","_uqm_conv_get_current_node","_uqm_conv_get_rep","_uqm_conv_get_secrets","_uqm_conv_get_secrets_lo","_uqm_conv_get_secrets_hi","_uqm_conv_get_choice_count","_uqm_conv_choice_is_locked","_uqm_conv_get_locked_choices_lo","_uqm_conv_get_locked_choices_hi","_uqm_conv_choose","_uqm_conv_choose_force","_uqm_conv_choice_get_req_faction","_uqm_conv_choice_get_req_min","_uqm_conv_choice_get_d0","_uqm_conv_choice_get_d1","_uqm_conv_choice_get_d2","_uqm_conv_choice_get_reveal_lo","_uqm_conv_choice_get_reveal_hi"]',
     '-Wl,--export-memory',
     '-o',
     outWasm,
