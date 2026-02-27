@@ -41,17 +41,17 @@ export const AudioProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   const patchSettings = useCallback((patch: Partial<AudioSettings>) => {
-    setSettings(prev => {
+    setSettingsState((prev: AudioSettings) => {
       const next: AudioSettings = {
         enabled: patch.enabled ?? prev.enabled,
         masterVolume: clamp01(patch.masterVolume ?? prev.masterVolume),
         sfxVolume: clamp01(patch.sfxVolume ?? prev.sfxVolume),
         ambienceVolume: clamp01(patch.ambienceVolume ?? prev.ambienceVolume),
       };
-
+      saveAudioSettings(next);
       return next;
     });
-  }, [setSettings]);
+  }, []);
 
   const setAmbience = useCallback((id: AmbienceId | null) => {
     setAmbienceId(id);

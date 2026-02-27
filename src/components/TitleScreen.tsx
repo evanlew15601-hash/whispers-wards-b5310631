@@ -3,6 +3,7 @@ import heroImage from '@/assets/hero-throne.jpg';
 import { useEffect, useMemo, useState } from 'react';
 import { loadUqmWasmRuntime } from '@/game/engine/uqmWasmRuntime';
 import { Button } from '@/components/ui/button';
+import { useAmbience } from '@/audio/useAmbience';
 import type { SaveSlotInfo } from '@/game/storage';
 
 interface TitleScreenProps {

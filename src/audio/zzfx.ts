@@ -124,7 +124,7 @@ export const zzfx = (
           ? q > 2
             ? q > 3
               ? q > 4
-                ? ((g / d) % 1 < D / 2) * 2 - 1
+                ? (((g / d) % 1 < D / 2) as any as number) * 2 - 1
                 : Z(g ** 3)
               : M.max(M.min(M.tan(g), 1), -1)
             : 1 - (2 * g / d % 2 + 2) % 2

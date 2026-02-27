@@ -1,6 +1,10 @@
 import { motion } from 'framer-motion';
 import heroImage from '@/assets/hero-throne.jpg';
-import { useAmbience } from '@/audio/useAmbiencimpoimport { SaveSlotInfo } from '@/game/storage'imimport   AlertDialog,
+import { useAmbience } from '@/audio/useAmbience';
+import { SaveSlotInfo } from '@/game/storage';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
@@ -9,16 +13,23 @@ import { useAmbience } from '@/audio/useAmbiencimpoimport { SaveSlotInfo } from 
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert  AlertDia
+} from '@/components/ui/alert-dialog';
+
 interface LoadScreenProps {
-  slots: SaveSlotInfo[]in  onLoad: (slotId: number)  slots: S  onDelete: (sl  onLoad: (slotId: numb  onBack: ()   onDelet  onNewGame: () => void;
+  slots: SaveSlotInfo[];
+  onLoad: (slotId: number) => void;
+  onDelete: (slotId: number) => void;
+  onBack: () => void;
+  onNewGame: () => void;
 }
 
 const formatSavedAt = (iso: string) => {
-  const d const formatSaved  if (Number.isNaN(d.get  const d = new Date(  retu  if (Number.isNaN(d.ge};
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString();
+};
 
-const LoadScreen = ({ slots, onLoad, onDelete, onB
-const LoadScreen = ({ slots, onLoad, onDelete, onBack, onNewGam
+const LoadScreen = ({ slots, onLoad, onDelete, onBack, onNewGame }: LoadScreenProps) => {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
       <div
@@ -172,4 +183,3 @@ const LoadScreen = ({ slots, onLoad, onDelete, onBack, onNewGam
 };
 
 export default LoadScreen;
-xport default LoadScreen;

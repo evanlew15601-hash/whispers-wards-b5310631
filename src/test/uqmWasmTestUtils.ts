@@ -82,9 +82,9 @@ export function ensureUqmMinimalWasmBuilt(): void {
     return newest;
   };
 
-  const hasExpectedExports = (bytes: Buffer) => {
+  const hasExpectedExports = (bytes: Buffer | ArrayBuffer) => {
     try {
-      const mod = new WebAssembly.Module(bytes);
+      const mod = new WebAssembly.Module(new Uint8Array(bytes as ArrayBuffer));
       const instance = new WebAssembly.Instance(mod, {});
       const exp = instance.exports as unknown as Record<string, unknown>;
 
