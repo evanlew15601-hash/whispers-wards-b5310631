@@ -181,6 +181,7 @@ describe('uqmWasmConversationEngine', () => {
     };
 
     expect(wasmEngine.getChoiceLockedFlags?.(base)).toEqual(tsConversationEngine.getChoiceLockedFlags?.(base));
+    expect(wasmEngine.getChoiceUiHints?.(base)).toEqual(tsConversationEngine.getChoiceUiHints?.(base));
 
     for (const choice of base.currentDialogue!.choices) {
       const helperLocked = isChoiceLocked(choice, base.factions, base.knownSecrets);

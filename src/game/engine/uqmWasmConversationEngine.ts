@@ -1,4 +1,4 @@
-import type { ConversationEngine } from './conversationEngine';
+import type { ConversationEngine, ChoiceUiHint } from './conversationEngine';
 import type { DialogueChoice, GameState } from '../types';
 
 import { dialogueTree } from '../data';
@@ -14,6 +14,13 @@ function factionIndex(factionId: string): number {
   if (factionId === 'verdant-court') return 1;
   if (factionId === 'ember-throne') return 2;
   return -1;
+}
+
+function factionIdFromIndex(idx: number): string | null {
+  if (idx === 0) return 'iron-pact';
+  if (idx === 1) return 'verdant-court';
+  if (idx === 2) return 'ember-throne';
+  return null;
 }
 
 type CompiledGraph = {
@@ -56,8 +63,11 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
   for (const id of graph.nodeIds) totalChoices += dialogueTree[id].choices.length;
   const choicesSize = totalChoices * graph.choiceStrideBytes;
 
-  const nodesPtr = exports.uqm_alloc(nodesSize);
-  const choicesPtr = exports.uqm_alloc(choicesSize);
+  // Keep the graph as a single packed blob in wasm memory:
+  // [nodes header + node metas][choice metas]
+  const blobPtr = exports.uqm_alloc(nodesSize + choicesSize);
+  const nodesPtr = blobPtr;
+  const choicesPtr = blobPtr + nodesSize;
 
   const mem = new DataView(exports.memory.buffer);
 
@@ -122,7 +132,11 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
     }
   }
 
-  exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
+  if (exports.uqm_conv_set_graph_blob) {
+    exports.uqm_conv_set_graph_blob(blobPtr);
+  } else {
+    exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
+  }
 }
 
 function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string, number>): { lo: number; hi: number } {
@@ -334,7 +348,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
     typeof uqm.exports.uqm_conv_get_secrets_hi === 'function';
 
   const secretBitCapacity = supports64 ? 64 : 32;
-  const choiceStrideBytes = supports64 ? 22 : 18;
+  const choiceStrideBytes = 22;
 
   const graph = compileGraph(secretBitCapacity, choiceStrideBytes);
   writeGraphToWasm(uqm, graph);
@@ -385,6 +399,92 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
       const lockedFlags: boolean[] = new Array(count);
       for (let i = 0; i < count; i++) lockedFlags[i] = exp.uqm_conv_choice_is_locked(i) === 1;
       return lockedFlags;
+    },
+    getChoiceUiHints(state): ChoiceUiHint[] | null {
+      if (!state.currentDialogue) return null;
+
+      const nodeIdx = graph.nodeIdToIndex.get(state.currentDialogue.id);
+      if (nodeIdx === undefined) return null;
+
+      const rep0 = state.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
+      const rep1 = state.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
+      const rep2 = state.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
+
+      const secretsMask = secretsMask64FromKnown(state.knownSecrets, graph.secretToBit);
+
+      const exp = uqm.exports;
+      if (graph.secretBitCapacity > 32 && exp.uqm_conv_reset64) {
+        exp.uqm_conv_reset64(nodeIdx, rep0, rep1, rep2, secretsMask.lo, secretsMask.hi);
+      } else {
+        exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secretsMask.lo);
+      }
+
+      let lockedFlags: boolean[];
+      if (state.knownSecrets.includes('override')) {
+        lockedFlags = state.currentDialogue.choices.map(() => false);
+      } else if (exp.uqm_conv_get_locked_choices_lo && exp.uqm_conv_get_locked_choices_hi) {
+        const lo = exp.uqm_conv_get_locked_choices_lo() >>> 0;
+        const hi = exp.uqm_conv_get_locked_choices_hi() >>> 0;
+        lockedFlags = state.currentDialogue.choices.map((_, i) => {
+          if (i < 32) return ((lo >>> i) & 1) === 1;
+          if (i < 64) return ((hi >>> (i - 32)) & 1) === 1;
+          return exp.uqm_conv_choice_is_locked(i) === 1;
+        });
+      } else {
+        lockedFlags = state.currentDialogue.choices.map((_, i) => exp.uqm_conv_choice_is_locked(i) === 1);
+      }
+
+      const canReadMeta =
+        typeof exp.uqm_conv_choice_get_req_faction === 'function' &&
+        typeof exp.uqm_conv_choice_get_req_min === 'function' &&
+        typeof exp.uqm_conv_choice_get_d0 === 'function' &&
+        typeof exp.uqm_conv_choice_get_d1 === 'function' &&
+        typeof exp.uqm_conv_choice_get_d2 === 'function' &&
+        typeof exp.uqm_conv_choice_get_reveal_lo === 'function' &&
+        typeof exp.uqm_conv_choice_get_reveal_hi === 'function';
+
+      return state.currentDialogue.choices.map((choice, i) => {
+        if (!canReadMeta) {
+          return {
+            locked: lockedFlags[i] ?? false,
+            requiredReputation: choice.requiredReputation ?? null,
+            effects: choice.effects,
+            revealsInfo: choice.revealsInfo ?? null,
+          };
+        }
+
+        const reqFaction = exp.uqm_conv_choice_get_req_faction!(i);
+        const reqMin = exp.uqm_conv_choice_get_req_min!(i);
+        const reqFactionId = reqFaction >= 0 ? factionIdFromIndex(reqFaction) : null;
+
+        const effects: ChoiceUiHint['effects'] = [];
+        const d0 = exp.uqm_conv_choice_get_d0!(i);
+        const d1 = exp.uqm_conv_choice_get_d1!(i);
+        const d2 = exp.uqm_conv_choice_get_d2!(i);
+        if (d0) effects.push({ factionId: 'iron-pact', reputationChange: d0 });
+        if (d1) effects.push({ factionId: 'verdant-court', reputationChange: d1 });
+        if (d2) effects.push({ factionId: 'ember-throne', reputationChange: d2 });
+
+        const revealLo = exp.uqm_conv_choice_get_reveal_lo!(i) >>> 0;
+        const revealHi = exp.uqm_conv_choice_get_reveal_hi!(i) >>> 0;
+
+        let revealInfo: string | null = null;
+        if (revealLo !== 0 || revealHi !== 0) {
+          for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+            const isSet = bit < 32 ? ((revealLo >>> bit) & 1) === 1 : ((revealHi >>> (bit - 32)) & 1) === 1;
+            if (!isSet) continue;
+            revealInfo = graph.bitToSecret[bit] ?? null;
+            break;
+          }
+        }
+
+        return {
+          locked: lockedFlags[i] ?? false,
+          requiredReputation: reqFactionId ? { factionId: reqFactionId, min: reqMin } : null,
+          effects,
+          revealsInfo: revealInfo,
+        };
+      });
     },
   };
 }

@@ -7,12 +7,15 @@ import { isChoiceLocked } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 
+import type { ChoiceUiHint } from '@/game/engine/conversationEngine';
+
 interface DialoguePanelProps {
   node: DialogueNode;
   onChoice: (choice: DialogueChoice) => void;
   knownSecrets: string[];
   factions: Faction[];
   lockedChoices?: boolean[] | null;
+  choiceUiHints?: ChoiceUiHint[] | null;
 }
 
 const factionLabelColors: Record<string, string> = {
@@ -47,7 +50,7 @@ const isUserTyping = () => {
   return el.isContentEditable;
 };
 
-const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }: DialoguePanelProps) => {
+const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, choiceUiHints }: DialoguePanelProps) => {
   const { playSfx } = useAudio();
 
   const fullText = node.text;
@@ -193,7 +196,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }
         const choice = node.choices[idx];
         if (!choice) return;
 
-        const locked = lockedChoices?.[idx] ?? isChoiceLocked(choice, factions, knownSecrets);
+        const locked = choiceUiHints?.[idx]?.locked ?? lockedChoices?.[idx] ?? isChoiceLocked(choice, factions, knownSecrets);
 
         if (locked) {
           nudgeLockedChoice(choice.id);
@@ -207,7 +210,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, lockedChoices, onChoice, nudgeLockedChoice, playSfx]);
+  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, lockedChoices, choiceUiHints, onChoice, nudgeLockedChoice, playSfx]);
 
   const dialogueParagraphs = splitWrappedLinesIntoParagraphs(dialogueLines);
 
@@ -321,9 +324,12 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }
 
           <div className={`flex flex-col gap-2 transition-opacity ${isRevealing ? 'opacity-45 pointer-events-none' : 'opacity-100'}`}>
             {node.choices.map((choice, i) => {
-              const locked = lockedChoices?.[i] ?? isChoiceLocked(choice, factions, knownSecrets);
+              const hint = choiceUiHints?.[i];
 
-              const repReq = choice.requiredReputation;
+              const locked = hint?.locked ?? lockedChoices?.[i] ?? isChoiceLocked(choice, factions, knownSecrets);
+
+              const repReq = hint?.requiredReputation ?? choice.requiredReputation;
+
               const reqFactionName = repReq
                 ? factions.find(f => f.id === repReq.factionId)?.name ?? repReq.factionId.replace('-', ' ')
                 : null;
@@ -384,7 +390,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }
                           </span>
                         )}
 
-                        {choice.effects.map(effect => (
+                        {(hint?.effects ?? choice.effects).map(effect => (
                           <span
                             key={effect.factionId}
                             className={`text-[10px] font-display tracking-wider ${
@@ -399,7 +405,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices }
                           </span>
                         ))}
 
-                        {choice.revealsInfo && (
+                        {(hint?.revealsInfo ?? choice.revealsInfo) && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-accent">
                             <Eye className="h-3 w-3" />
                             intel

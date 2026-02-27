@@ -12,6 +12,7 @@ export type UqmMinimalNormalizedExports = {
   uqm_conv_reset: (startNode: number, rep0: number, rep1: number, rep2: number, secrets: number) => void;
   uqm_conv_reset64: (startNode: number, rep0: number, rep1: number, rep2: number, secretsLo: number, secretsHi: number) => void;
   uqm_conv_set_graph: (nodesPtr: number, choicesPtr: number) => void;
+  uqm_conv_set_graph_blob: (blobPtr: number) => void;
   uqm_conv_get_current_node: () => number;
   uqm_conv_get_rep: (idx: number) => number;
   uqm_conv_get_secrets: () => number;
@@ -23,6 +24,14 @@ export type UqmMinimalNormalizedExports = {
   uqm_conv_get_locked_choices_hi: () => number;
   uqm_conv_choose: (localIdx: number) => number;
   uqm_conv_choose_force: (localIdx: number) => number;
+
+  uqm_conv_choice_get_req_faction: (localIdx: number) => number;
+  uqm_conv_choice_get_req_min: (localIdx: number) => number;
+  uqm_conv_choice_get_d0: (localIdx: number) => number;
+  uqm_conv_choice_get_d1: (localIdx: number) => number;
+  uqm_conv_choice_get_d2: (localIdx: number) => number;
+  uqm_conv_choice_get_reveal_lo: (localIdx: number) => number;
+  uqm_conv_choice_get_reveal_hi: (localIdx: number) => number;
 };
 
 const BUILT_KEY = '__uqm_minimal_wasm_built__';
@@ -87,12 +96,20 @@ export function ensureUqmMinimalWasmBuilt(): void {
         ok(['uqm_conv_reset', '_uqm_conv_reset']) &&
         ok(['uqm_conv_reset64', '_uqm_conv_reset64']) &&
         ok(['uqm_conv_set_graph', '_uqm_conv_set_graph']) &&
+        ok(['uqm_conv_set_graph_blob', '_uqm_conv_set_graph_blob']) &&
         ok(['uqm_conv_get_choice_count', '_uqm_conv_get_choice_count']) &&
         ok(['uqm_conv_choice_is_locked', '_uqm_conv_choice_is_locked']) &&
         ok(['uqm_conv_get_locked_choices_lo', '_uqm_conv_get_locked_choices_lo']) &&
         ok(['uqm_conv_get_locked_choices_hi', '_uqm_conv_get_locked_choices_hi']) &&
         ok(['uqm_conv_choose', '_uqm_conv_choose']) &&
-        ok(['uqm_conv_choose_force', '_uqm_conv_choose_force'])
+        ok(['uqm_conv_choose_force', '_uqm_conv_choose_force']) &&
+        ok(['uqm_conv_choice_get_req_faction', '_uqm_conv_choice_get_req_faction']) &&
+        ok(['uqm_conv_choice_get_req_min', '_uqm_conv_choice_get_req_min']) &&
+        ok(['uqm_conv_choice_get_d0', '_uqm_conv_choice_get_d0']) &&
+        ok(['uqm_conv_choice_get_d1', '_uqm_conv_choice_get_d1']) &&
+        ok(['uqm_conv_choice_get_d2', '_uqm_conv_choice_get_d2']) &&
+        ok(['uqm_conv_choice_get_reveal_lo', '_uqm_conv_choice_get_reveal_lo']) &&
+        ok(['uqm_conv_choice_get_reveal_hi', '_uqm_conv_choice_get_reveal_hi'])
       );
     } catch {
       return false;
@@ -199,6 +216,7 @@ export async function loadUqmMinimalWasmExports(): Promise<UqmMinimalNormalizedE
     uqm_conv_reset: getFunction(raw, ['uqm_conv_reset', '_uqm_conv_reset']),
     uqm_conv_reset64: getFunction(raw, ['uqm_conv_reset64', '_uqm_conv_reset64']),
     uqm_conv_set_graph: getFunction(raw, ['uqm_conv_set_graph', '_uqm_conv_set_graph']),
+    uqm_conv_set_graph_blob: getFunction(raw, ['uqm_conv_set_graph_blob', '_uqm_conv_set_graph_blob']),
     uqm_conv_get_current_node: getFunction(raw, ['uqm_conv_get_current_node', '_uqm_conv_get_current_node']),
     uqm_conv_get_rep: getFunction(raw, ['uqm_conv_get_rep', '_uqm_conv_get_rep']),
     uqm_conv_get_secrets: getFunction(raw, ['uqm_conv_get_secrets', '_uqm_conv_get_secrets']),
@@ -210,5 +228,13 @@ export async function loadUqmMinimalWasmExports(): Promise<UqmMinimalNormalizedE
     uqm_conv_get_locked_choices_hi: getFunction(raw, ['uqm_conv_get_locked_choices_hi', '_uqm_conv_get_locked_choices_hi']),
     uqm_conv_choose: getFunction(raw, ['uqm_conv_choose', '_uqm_conv_choose']),
     uqm_conv_choose_force: getFunction(raw, ['uqm_conv_choose_force', '_uqm_conv_choose_force']),
+
+    uqm_conv_choice_get_req_faction: getFunction(raw, ['uqm_conv_choice_get_req_faction', '_uqm_conv_choice_get_req_faction']),
+    uqm_conv_choice_get_req_min: getFunction(raw, ['uqm_conv_choice_get_req_min', '_uqm_conv_choice_get_req_min']),
+    uqm_conv_choice_get_d0: getFunction(raw, ['uqm_conv_choice_get_d0', '_uqm_conv_choice_get_d0']),
+    uqm_conv_choice_get_d1: getFunction(raw, ['uqm_conv_choice_get_d1', '_uqm_conv_choice_get_d1']),
+    uqm_conv_choice_get_d2: getFunction(raw, ['uqm_conv_choice_get_d2', '_uqm_conv_choice_get_d2']),
+    uqm_conv_choice_get_reveal_lo: getFunction(raw, ['uqm_conv_choice_get_reveal_lo', '_uqm_conv_choice_get_reveal_lo']),
+    uqm_conv_choice_get_reveal_hi: getFunction(raw, ['uqm_conv_choice_get_reveal_hi', '_uqm_conv_choice_get_reveal_hi']),
   };
 }

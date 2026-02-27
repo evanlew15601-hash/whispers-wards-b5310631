@@ -10,8 +10,9 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   const nodesSize = 8 + nodeCount * 8;
   const choicesSize = totalChoices * 22;
 
-  const nodesPtr = exports.uqm_alloc(nodesSize);
-  const choicesPtr = exports.uqm_alloc(choicesSize);
+  const blobPtr = exports.uqm_alloc(nodesSize + choicesSize);
+  const nodesPtr = blobPtr;
+  const choicesPtr = blobPtr + nodesSize;
 
   const mem = new DataView(exports.memory.buffer);
 
@@ -56,7 +57,7 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setUint32(base + 14, 0x2, true);
   mem.setUint32(base + 18, 0x0, true);
 
-  exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
+  exports.uqm_conv_set_graph_blob(blobPtr);
 }
 
 describe('uqm minimal wasm conversation core', () => {
@@ -73,6 +74,14 @@ describe('uqm minimal wasm conversation core', () => {
 
     expect(exp.uqm_conv_get_choice_count()).toBe(1);
     expect(exp.uqm_conv_choice_is_locked(0)).toBe(0);
+
+    expect(exp.uqm_conv_choice_get_req_faction(0)).toBe(-1);
+    expect(exp.uqm_conv_choice_get_req_min(0)).toBe(0);
+    expect(exp.uqm_conv_choice_get_d0(0)).toBe(5);
+    expect(exp.uqm_conv_choice_get_d1(0)).toBe(-3);
+    expect(exp.uqm_conv_choice_get_d2(0)).toBe(0);
+    expect(exp.uqm_conv_choice_get_reveal_lo(0)).toBe(0x1);
+    expect(exp.uqm_conv_choice_get_reveal_hi(0)).toBe(0x1);
 
     const next = exp.uqm_conv_choose(0);
     expect(next).toBe(1);

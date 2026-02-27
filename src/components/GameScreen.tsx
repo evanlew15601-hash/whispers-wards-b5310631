@@ -9,6 +9,8 @@ import InfoPanel from '@/components/InfoPanel';
 import GameMenu from '@/components/GameMenu';
 import { Button } from '@/components/ui/button';
 
+import type { ChoiceUiHint } from '@/game/engine/conversationEngine';
+
 interface GameScreenProps {
   state: GameState;
   engineLabel: string;
@@ -20,6 +22,8 @@ interface GameScreenProps {
   deleteSlot: (slotId: number) => void;
   exitToTitle: () => void;
   enterPendingEncounter: () => void;
+  choiceLockedFlags: boolean[] | null;
+  choiceUiHints: ChoiceUiHint[] | null;
 }
 
 type GameMenuTab = 'save' | 'load' | 'campaign' | 'about';
@@ -45,6 +49,8 @@ const GameScreen = ({
   deleteSlot,
   exitToTitle,
   enterPendingEncounter,
+  choiceLockedFlags,
+  choiceUiHints,
 }: GameScreenProps) => {
   const conversationEnded = !state.currentDialogue;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -163,6 +169,7 @@ const GameScreen = ({
                 knownSecrets={state.knownSecrets}
                 factions={state.factions}
                 lockedChoices={choiceLockedFlags}
+                choiceUiHints={choiceUiHints}
               />
             </>
           )}

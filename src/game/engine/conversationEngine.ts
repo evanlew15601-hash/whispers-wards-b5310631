@@ -1,10 +1,14 @@
 import type { DialogueChoice, GameState } from '../types';
 
+export type ChoiceUiHint = {
+  locked: boolean;
+  requiredReputation: { factionId: string; min: number } | null;
+  effects: { factionId: string; reputationChange: number }[];
+  revealsInfo: string | null;
+};
+
 /**
  * Minimal interface to allow swapping the conversation/state-transition engine.
- *
- * Today we use a TypeScript implementation backed by `src/game/data.ts`.
- * In the future, this can be implemented by a UQM-derived engine compiled to WASM.
  */
 export interface ConversationEngine {
   /** Create a fresh initial state (title screen, fresh world, etc.). */
@@ -22,4 +26,10 @@ export interface ConversationEngine {
    * The UI can use this to stay aligned with whichever engine is active.
    */
   getChoiceLockedFlags?: (state: GameState) => boolean[] | null;
+
+  /**
+   * Optional: compute UI-oriented choice metadata (lock reason, rep deltas, intel flags)
+   * using the active engine as the source of truth.
+   */
+  getChoiceUiHints?: (state: GameState) => ChoiceUiHint[] | null;
 }

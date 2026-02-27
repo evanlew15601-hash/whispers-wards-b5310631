@@ -190,7 +190,16 @@ export const tsConversationEngine: ConversationEngine = {
   applyChoice,
   getChoiceLockedFlags(state) {
     if (!state.currentDialogue) return null;
-    return state.currentDialogue.choices.map(c => isChoiceLocked(c, state.factions, state.knownSecrets));
+    return state.currentDialogue.choices.map(choice => isChoiceLocked(choice, state.factions, state.knownSecrets));
+  },
+  getChoiceUiHints(state) {
+    if (!state.currentDialogue) return null;
+    return state.currentDialogue.choices.map(choice => ({
+      locked: isChoiceLocked(choice, state.factions, state.knownSecrets),
+      requiredReputation: choice.requiredReputation ?? null,
+      effects: choice.effects,
+      revealsInfo: choice.revealsInfo ?? null,
+    }));
   },
 };
 
