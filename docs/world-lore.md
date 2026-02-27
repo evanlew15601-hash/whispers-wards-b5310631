@@ -1,67 +1,81 @@
 # Crown & Concord — world lore (player-safe)
 
 ## The realm at a glance
-The realm is held together less by bloodline than by *recognition*: promises witnessed, titles acknowledged, debts recorded, and insults remembered.
+This realm runs on *recognition*.
 
-War isn’t constant here; it’s always one bad negotiation away.
+That means your title only matters if other powerful people act like it matters:
+- the clerks record it
+- the guards open the gate for you
+- the merchants accept your seal and extend credit
+- the courts treat your orders as enforceable
+
+Bloodlines still exist, but they are not enough on their own. A duke without recognition is a person with a fancy name and no access.
+
+War isn’t constant here; it’s always one bad negotiation away because food and trade move through a few chokepoints. When talks fail, someone closes a road, a town goes hungry, and the next move is usually soldiers.
 
 ## The Concord (legitimacy as a system)
-The Concord is the realm’s governing reality: a mesh of precedent, mutual oath, and public consensus that decides what power *counts*.
+The Concord is the set of rules people agree to follow because it keeps the realm governable.
 
-- A title is real while enough people treat it as real.
-- An oath matters when it is witnessed, repeated, and enforceable through custom.
-- A lie can win a night, but it rarely wins a season.
+It works like this:
+- **Titles are social contracts.** A title becomes “real” when it is witnessed, recorded, and treated as binding by the groups that matter.
+- **Oaths create obligations.** When an oath is witnessed at Concord Hall (or by recognized witnesses), breaking it carries costs that others will actually enforce.
+- **Precedent matters.** If the last three disputes were settled a certain way, claiming an exception has a political price.
 
-For an envoy, the Concord is both shield and leash.
+A simple example:
+- If you are named Warden of a pass, but the Hall refuses to record it and merchants refuse to honor your tolls, you cannot fund guards.
+- If your rivals can persuade enough witnesses that your appointment was improper, they can “unmake” your authority without ever drawing a sword.
+
+For an envoy, the Concord is protection and constraint. You can call people to the table, but you are expected to keep the process intact.
 
 ## Geography that creates politics
-**Greenmarch Pass** is a mountain corridor and a pressure valve:
+**Greenmarch Pass** is the route that keeps multiple regions fed in winter.
 
 - Close it, and towns starve.
-- Open it under one banner, and another faction feels strangled.
-- Keep it “neutral,” and someone must be trusted to keep it neutral.
+- Occupy it under one banner, and another faction loses its safest trade route.
+- Leave it “neutral,” and everyone argues about who gets to police it, collect tolls, and enforce rules.
 
-Because of this, the pass becomes an argument about the future, not merely the present.
+Because of that, Greenmarch becomes a legitimacy fight: whoever controls the pass can claim they are the one keeping the realm stable.
 
 ## The three powers
 ### The Iron Pact
-Fortress cities and disciplined houses who treat stability like a supply line.
+Fortress cities that prize order, predictable rules, and disciplined force.
 
-- Virtue: reliability.
-- Vice: a tendency to solve uncertainty with force.
-- What they fear: chaos that can’t be marched against.
+- What they want: a pass they can patrol and a border they can defend.
+- What they fear: uncertainty—raids, shortages, and rivals taking advantage.
+- How they bargain: terms they can enforce with clear consequences.
 
 ### The Verdant Court
-Forest-governors of ward and root, who believe patience is a weapon.
+Forest-governors who treat the land as something you can damage permanently.
 
-- Virtue: stewardship.
-- Vice: secrets held too long become rot.
-- What they fear: wounds to the land that can’t be healed by apology.
+- What they want: the binding beneath Greenmarch protected from digging, fires, and mass troop movement.
+- What they fear: harm that cannot be repaired by paying compensation later.
+- How they bargain: obligations tied to stewardship and restraint, backed by wards and watchers.
 
 ### The Ember Throne
-A merchant empire whose diplomacy arrives with ledgers already open.
+A merchant empire that turns disputes into tariffs, contracts, and debts.
 
-- Virtue: pragmatic problem-solving.
-- Vice: turning people into numbers—and numbers into leverage.
-- What they fear: a world where profit cannot buy safety.
+- What they want: routes open, tolls predictable, and paperwork that gives them leverage.
+- What they fear: a world where profit cannot buy safety or access.
+- How they bargain: offer a solution that makes everyone dependent on their ledgers.
 
-## Magic: practical, political, expensive
-Magic in this realm is less about spectacle and more about *constraints*.
+## Magic: common, defensive, and political
+Magic here is mostly about controlling what can happen in a place.
 
-- **Wards** redirect, delay, and mislead. They shape behavior without announcing a war.
-- **Taboos** matter because they create predictability. Breaking a taboo is often treated as an intention, not a technique.
+- **Wards** are the everyday workhorse: they redirect people, miscount distances, lock doors against certain intent, or make travel unreliable for an army.
+- **Taboos** function like rules of engagement. If a faction is known to refuse fire magic, an alchemical burn looks like a frame job.
 
-Magic rarely grants a “free win.” It turns conflict into a slower, stranger kind of consequence.
+Magic is powerful, but it is not free. Strong wards need maintenance, knowledge, and consent from the people who live with them.
 
-## Culture: how people threaten politely
-- Compliments are often conditional.
-- Gifts are rarely free.
-- Apologies are negotiations.
+## Culture: how people pressure you without saying “threat”
+- Compliments are often conditional (“You’re sensible enough to…”) so refusal sounds like stupidity.
+- Gifts are invoices with better manners.
+- Apologies are bargaining positions.
 
-A courtier’s highest skill is making a demand sound like a favor.
+Court skill is making a demand sound like the other person’s idea.
 
 ## Glossary (short)
-- **Envoy**: a negotiator empowered to bind factions through recognized terms.
-- **Charter**: a document that creates permissions and obligations (often used to move trade, people, or blame).
-- **Ward**: defensive magic that changes what is *possible* in a place.
+- **Recognition**: the practical reality of being treated as legitimate by clerks, courts, guards, and merchants.
+- **Envoy**: a negotiator empowered to bind factions through witnessed terms.
+- **Charter**: a document that grants permissions and creates obligations.
+- **Ward**: defensive magic that restricts or redirects what actions succeed in a place.
 - **Root-Oath**: a Verdant pledge of stewardship and restraint.
