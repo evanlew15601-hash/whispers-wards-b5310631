@@ -355,6 +355,14 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'aldric-burns-details',
       },
       {
+        id: 'aldric-dispatches',
+        text: '"Show me the patrol orders. Who put them on that route?"',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'iron-dispatch-audit',
+      },
+      {
         id: 'aldric-back',
         text: 'Step back and pursue other leads first.',
         effects: [],
@@ -441,6 +449,39 @@ export const dialogueTree: Record<string, DialogueNode> = {
         text: 'Return to the wider hall and keep digging.',
         effects: [],
         nextNodeId: 'concord-hub',
+      },
+    ],
+  },
+  'iron-dispatch-audit': {
+    id: 'iron-dispatch-audit',
+    speaker: 'Quartermaster Ilya Rook',
+    speakerFaction: 'iron-pact',
+    text: 'Vane waves you through a side door into a cramped records room. A quartermaster waits with a stack of forms and a face that says she has stopped being surprised.\n\n"This is the patrol order," Rook says, tapping the reroute slip. "Iron seal. Correct phrasing. The problem is the docket number."\n\nShe slides another sheet across. "That number belongs to an Ember filing with the Hall clerks. Grain storage. East wing. Last week. Someone reused it so a clerk would wave the order through without reading."\n\nRook meets your eyes. "Either Ember\'s paperwork was copied, or someone wants you to think it was."',
+    choices: [
+      {
+        id: 'dispatch-archives',
+        text: 'Take the docket number to the archives and confirm the filing.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'hall-archives',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
+      },
+      {
+        id: 'dispatch-renzo',
+        text: 'Go to Renzo and ask why Hall docket numbers are showing up on Iron orders.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-intro',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
+      },
+      {
+        id: 'dispatch-back',
+        text: 'Return to the hall and keep pulling threads.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'A patrol reroute order carried a real Concord docket number tied to an Ember filing.',
       },
     ],
   },
@@ -579,8 +620,81 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'thessaly-oath',
       },
       {
+        id: 'pass-inspect',
+        text: '"Show me one of the warding points. If someone is tampering with it, I need to see how."',
+        effects: [
+          { factionId: 'verdant-court', reputationChange: 3 },
+        ],
+        nextNodeId: 'verdant-ward-inspection',
+      },
+      {
         id: 'pass-back',
         text: 'Return to the hall and gather more leverage.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+      },
+    ],
+  },
+  'verdant-ward-inspection': {
+    id: 'verdant-ward-inspection',
+    speaker: 'Emissary Thessaly',
+    speakerFaction: 'verdant-court',
+    text: 'Thessaly leads you down a servants\' stair to an older part of the hall. The air is cooler here. The stone feels damp even when it\'s dry.\n\nShe stops at an archway marked with shallow carvings. "One of the anchors," she says. "A place the ward holds onto."\n\nIn the mortar line, someone has scraped at the seam. Grey grit clings to the groove, and it smells faintly of sulfur.\n\n"Furnace salt," Thessaly says. "Not ours. It doesn\'t shatter a ward. It makes it slip for a short time. Long enough for someone to pass and leave you arguing about who was allowed to be there."',
+    choices: [
+      {
+        id: 'ward-sample',
+        text: 'Take a pinch of the grit and bring it to Vane.',
+        effects: [
+          { factionId: 'verdant-court', reputationChange: 3 },
+          { factionId: 'iron-pact', reputationChange: 3 },
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'aldric-ward-sample',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+      {
+        id: 'ward-renzo',
+        text: 'Go to Renzo and ask why his merchants trade in furnace salt.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-intro',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+      {
+        id: 'ward-back',
+        text: 'Return to the hall and keep digging.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'A Verdant ward anchor was scraped and dusted with furnace salt to make the ward slip temporarily.',
+      },
+    ],
+  },
+  'aldric-ward-sample': {
+    id: 'aldric-ward-sample',
+    speaker: 'Commander Aldric Vane',
+    speakerFaction: 'iron-pact',
+    text: 'Vane pinches the grey grit between thumb and forefinger and smells it.\n\n"Sulfur," he says. He glances at the charred splinter on the table. "Same family."\n\nHe looks up. "That isn\'t druid work. It\'s sabotage."\n\nHe calls toward the door. "No retaliation patrols without my mark. Not until the summit." Then, quieter, to you: "Now give me the name that bought this."',
+    choices: [
+      {
+        id: 'sample-archives',
+        text: 'Take the lead to the archives and look for the matching docket.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'hall-archives',
+      },
+      {
+        id: 'sample-renzo',
+        text: 'Go back to Renzo. If his ledgers mention furnace salt, you want to see it.',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: -3 },
+        ],
+        nextNodeId: 'renzo-ledger-request',
+      },
+      {
+        id: 'sample-back',
+        text: 'Return to the hall and keep pulling threads.',
         effects: [],
         nextNodeId: 'concord-hub',
       },
@@ -809,10 +923,49 @@ export const dialogueTree: Record<string, DialogueNode> = {
         nextNodeId: 'renzo-ledger-bought',
       },
       {
+        id: 'ledger-manifests',
+        text: '"Numbers are only half the story. Show me the manifests that match these entries."',
+        effects: [
+          { factionId: 'ember-throne', reputationChange: 3 },
+        ],
+        nextNodeId: 'ember-manifest-check',
+      },
+      {
         id: 'ledger-back',
         text: 'Leave before you owe him anything else.',
         effects: [],
         nextNodeId: 'concord-hub',
+      },
+    ],
+  },
+  'ember-manifest-check': {
+    id: 'ember-manifest-check',
+    speaker: 'Trade Consul Renzo',
+    speakerFaction: 'ember-throne',
+    text: 'Renzo watches you read for a minute, then taps the table. "If you want to understand the code, look at what moved."\n\nA clerk brings a slimmer manifest book. Most lines are ordinary: lamp oil, wax, spiced wine. One entry catches your eye. A margin mark matches the symbol you saw beside "furnace salts." The item is written as "road salt." Next to it is a Concord Hall docket number.\n\nRenzo follows your gaze. "We file through the Hall like everyone else," he says. "The realm runs on paperwork."',
+    choices: [
+      {
+        id: 'manifest-archives',
+        text: 'Take the docket number to the archives and see who filed it.',
+        effects: [],
+        nextNodeId: 'hall-archives',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+      },
+      {
+        id: 'manifest-quartermaster',
+        text: 'Take the docket number to Iron records and compare it to the patrol order.',
+        effects: [
+          { factionId: 'iron-pact', reputationChange: 3 },
+        ],
+        nextNodeId: 'iron-dispatch-audit',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+      },
+      {
+        id: 'manifest-back',
+        text: 'Return to the hall with the docket number in your head.',
+        effects: [],
+        nextNodeId: 'concord-hub',
+        revealsInfo: 'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
       },
     ],
   },
