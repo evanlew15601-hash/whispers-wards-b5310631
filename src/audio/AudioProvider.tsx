@@ -1,7 +1,9 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PropsWithChildren } from 'react';
 import { playSfx as playZzfxSfx, type SfxId } from '@/audio/sfx';
 import { clamp01, DEFAULT_AUDIO_SETTINGS, loadAudioSettings, saveAudioSettings, type AudioSettings } from '@/audio/storage';
+import { getHowlerRuntime } from '@/audio/howlerRuntime';
+import { getProceduralAmbienceUrl, type AmbienceId } from '@/audio/proceduralAmbience';
 import { resumeZzfx } from '@/audio/zzfx';
 
 export interface AudioApi {
@@ -9,6 +11,7 @@ export interface AudioApi {
   setSettings: (next: AudioSettings) => void;
   patchSettings: (patch: Partial<AudioSettings>) => void;
   playSfx: (id: SfxId) => void;
+  setAmbience: (id: AmbienceId | null) => void;
   unlockAudio: () => void;
 }
 
@@ -19,11 +22,17 @@ export const AudioContext = createContext<AudioApi>({
   setSettings: noop,
   patchSettings: noop,
   playSfx: noop,
+  setAmbience: noop,
   unlockAudio: noop,
 });
 
 export const AudioProvider = ({ children }: PropsWithChildren) => {
   const [settings, setSettingsState] = useState<AudioSettings>(() => loadAudioSettings());
+  const [ambienceId, setAmbienceId] = useState<AmbienceId | null>(null);
+
+  const ambienceRef = useRef<Howl | null>(null);
+  const ambienceKeyRef = useRef<AmbienceId | null>(null);
+  const fadeOutTimerRef = useRef<number | null>(null);
 
   const setSettings = useCallback((next: AudioSettings) => {
     setSettingsState(next);
@@ -43,8 +52,18 @@ export const AudioProvider = ({ children }: PropsWithChildren) => {
     });
   }, [setSettings]);
 
+  const setAmbience = useCallback((id: AmbienceId | null) => {
+    setAmbienceId(id);
+  }, []);
+
   const unlockAudio = useCallback(() => {
     void resumeZzfx();
+
+    const runtime = getHowlerRuntime();
+    const ctx = runtime?.Howler?.ctx;
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => undefined);
+    }
   }, []);
 
   useEffect(() => {
@@ -63,6 +82,90 @@ export const AudioProvider = ({ children }: PropsWithChildren) => {
     };
   }, [unlockAudio]);
 
+  useEffect(() => {
+    const runtime = getHowlerRuntime();
+    if (!runtime) return;
+
+    const { Howl, Howler } = runtime;
+
+    Howler.volume(settings.masterVolume);
+
+    const current = ambienceRef.current;
+    const currentKey = ambienceKeyRef.current;
+
+    if (!settings.enabled || ambienceId == null) {
+      Howler.mute(true);
+
+      if (current) {
+        const from = current.volume();
+        current.fade(from, 0, 500);
+
+        if (fadeOutTimerRef.current != null) window.clearTimeout(fadeOutTimerRef.current);
+        fadeOutTimerRef.current = window.setTimeout(() => {
+          current.stop();
+          current.unload();
+          fadeOutTimerRef.current = null;
+        }, 520);
+
+        ambienceRef.current = null;
+        ambienceKeyRef.current = null;
+      }
+
+      return;
+    }
+
+    Howler.mute(false);
+
+    const target = clamp01(settings.ambienceVolume);
+
+    if (current && currentKey === ambienceId) {
+      current.volume(target);
+      return;
+    }
+
+    const url = getProceduralAmbienceUrl(ambienceId);
+    const next = new Howl({ src: [url], loop: true, volume: 0 });
+    next.play();
+    next.fade(0, target, 800);
+
+    ambienceRef.current = next;
+    ambienceKeyRef.current = ambienceId;
+
+    if (current) {
+      const from = current.volume();
+      current.fade(from, 0, 800);
+
+      if (fadeOutTimerRef.current != null) window.clearTimeout(fadeOutTimerRef.current);
+      fadeOutTimerRef.current = window.setTimeout(() => {
+        current.stop();
+        current.unload();
+        fadeOutTimerRef.current = null;
+      }, 820);
+    }
+
+    return () => {
+      if (fadeOutTimerRef.current != null) {
+        window.clearTimeout(fadeOutTimerRef.current);
+        fadeOutTimerRef.current = null;
+      }
+    };
+  }, [settings.enabled, settings.masterVolume, settings.ambienceVolume, ambienceId]);
+
+  useEffect(() => () => {
+    const current = ambienceRef.current;
+    if (!current) return;
+
+    current.stop();
+    current.unload();
+    ambienceRef.current = null;
+    ambienceKeyRef.current = null;
+
+    if (fadeOutTimerRef.current != null) {
+      window.clearTimeout(fadeOutTimerRef.current);
+      fadeOutTimerRef.current = null;
+    }
+  }, []);
+
   const playSfx = useCallback((id: SfxId) => {
     if (!settings.enabled) return;
 
@@ -75,8 +178,9 @@ export const AudioProvider = ({ children }: PropsWithChildren) => {
     setSettings,
     patchSettings,
     playSfx,
+    setAmbience,
     unlockAudio,
-  }), [settings, setSettings, patchSettings, playSfx, unlockAudio]);
+  }), [settings, setSettings, patchSettings, playSfx, setAmbience, unlockAudio]);
 
   return (
     <AudioContext.Provider value={api}>

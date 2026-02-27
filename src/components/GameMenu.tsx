@@ -414,7 +414,7 @@ const GameMenu = ({
                       disabled={!audioSettings.enabled}
                     />
                     <div className="text-[11px] text-muted-foreground">
-                      Ambience playback will be wired to scenes once audio assets are added.
+                      Ambience is currently procedural; we can swap in authored loops later.
                     </div>
                   </div>
                 </div>

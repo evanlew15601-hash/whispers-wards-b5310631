@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { useAmbience } from '@/audio/useAmbience';
 import { GameState, DialogueChoice } from '@/game/types';
 import { SaveSlotInfo } from '@/game/storage';
 import DialoguePanel from '@/components/DialoguePanel';
