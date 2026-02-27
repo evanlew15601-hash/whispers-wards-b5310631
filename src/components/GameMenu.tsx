@@ -415,7 +415,7 @@ const GameMenu = ({
                       disabled={!audioSettings.enabled}
                     />
                     <div className="text-[11px] text-muted-foreground">
-                      To use authored loops, add <span className="font-mono">public/audio/ambience/title_regal.(ogg|mp3)</span> and <span className="font-mono">public/audio/ambience/game_intrigue.(ogg|mp3)</span>.
+                      Procedural ambience plays by default. Authored loops are used when available.
                     </div>
                   </div>
                 </div>
