@@ -8,7 +8,7 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   const totalChoices = 2;
 
   const nodesSize = 8 + nodeCount * 8;
-  const choicesSize = totalChoices * 18;
+  const choicesSize = totalChoices * 22;
 
   const nodesPtr = exports.uqm_alloc(nodesSize);
   const choicesPtr = exports.uqm_alloc(choicesSize);
@@ -28,13 +28,14 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setUint32(nodesPtr + 8 + 8 + 4, 1, true);
 
   // choice 0 (node 0 -> node 1)
-  // Layout (packed 18 bytes):
+  // Layout (packed 22 bytes):
   // i32 nextNode @0
   // i16 d0,d1,d2 @4,@6,@8
   // i16 reqFaction @10
   // i16 reqMin @12
-  // u32 revealMask @14
-  let base = choicesPtr + 0 * 18;
+  // u32 revealMaskLo @14
+  // u32 revealMaskHi @18
+  let base = choicesPtr + 0 * 22;
   mem.setInt32(base + 0, 1, true);
   mem.setInt16(base + 4, 5, true);
   mem.setInt16(base + 6, -3, true);
@@ -42,9 +43,10 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setInt16(base + 10, -1, true);
   mem.setInt16(base + 12, 0, true);
   mem.setUint32(base + 14, 0x1, true);
+  mem.setUint32(base + 18, 0x1, true);
 
   // choice 1 (node 1 -> end), gated on rep0 >= 10
-  base = choicesPtr + 1 * 18;
+  base = choicesPtr + 1 * 22;
   mem.setInt32(base + 0, -1, true);
   mem.setInt16(base + 4, 0, true);
   mem.setInt16(base + 6, 0, true);
@@ -52,6 +54,7 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setInt16(base + 10, 0, true);
   mem.setInt16(base + 12, 10, true);
   mem.setUint32(base + 14, 0x2, true);
+  mem.setUint32(base + 18, 0x0, true);
 
   exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
 }
@@ -63,7 +66,7 @@ describe('uqm minimal wasm conversation core', () => {
     exp = await loadUqmMinimalWasmExports();
   }, 60_000);
 
-  it('uses the expected packed ChoiceMeta (18 bytes) with little-endian loads', () => {
+  it('uses the expected packed ChoiceMeta (22 bytes) with little-endian loads', () => {
     writeGraph(exp);
 
     exp.uqm_conv_reset(0, 0, 0, 0, 0);
@@ -78,7 +81,8 @@ describe('uqm minimal wasm conversation core', () => {
     expect(exp.uqm_conv_get_rep(0)).toBe(5);
     expect(exp.uqm_conv_get_rep(1)).toBe(-3);
     expect(exp.uqm_conv_get_rep(2)).toBe(0);
-    expect(exp.uqm_conv_get_secrets()).toBe(0x1);
+    expect(exp.uqm_conv_get_secrets_lo()).toBe(0x1);
+    expect(exp.uqm_conv_get_secrets_hi()).toBe(0x1);
     expect(exp.uqm_conv_get_current_node()).toBe(1);
 
     // The second node should exist (would not if nextNode were read with wrong endianness).
@@ -88,39 +92,42 @@ describe('uqm minimal wasm conversation core', () => {
   it('enforces reputation-gated locks and does not advance on locked choices', () => {
     writeGraph(exp);
 
-    exp.uqm_conv_reset(1, 5, 0, 0, 0x1);
+    exp.uqm_conv_reset64(1, 5, 0, 0, 0x1, 0x1);
 
     expect(exp.uqm_conv_get_choice_count()).toBe(1);
     expect(exp.uqm_conv_choice_is_locked(0)).toBe(1);
 
     const prevNode = exp.uqm_conv_get_current_node();
-    const prevSecrets = exp.uqm_conv_get_secrets();
+    const prevSecretsLo = exp.uqm_conv_get_secrets_lo();
+    const prevSecretsHi = exp.uqm_conv_get_secrets_hi();
     const prevRep0 = exp.uqm_conv_get_rep(0);
 
     expect(exp.uqm_conv_choose(0)).toBe(-1);
 
     expect(exp.uqm_conv_get_current_node()).toBe(prevNode);
-    expect(exp.uqm_conv_get_secrets()).toBe(prevSecrets);
+    expect(exp.uqm_conv_get_secrets_lo()).toBe(prevSecretsLo);
+    expect(exp.uqm_conv_get_secrets_hi()).toBe(prevSecretsHi);
     expect(exp.uqm_conv_get_rep(0)).toBe(prevRep0);
 
     // Now unlock and choose.
-    exp.uqm_conv_reset(1, 10, 0, 0, 0x1);
+    exp.uqm_conv_reset64(1, 10, 0, 0, 0x1, 0x1);
     expect(exp.uqm_conv_choice_is_locked(0)).toBe(0);
 
     expect(exp.uqm_conv_choose(0)).toBe(-1);
     expect(exp.uqm_conv_get_current_node()).toBe(-1);
-    expect(exp.uqm_conv_get_secrets()).toBe(0x3);
+    expect(exp.uqm_conv_get_secrets_lo()).toBe(0x3);
+    expect(exp.uqm_conv_get_secrets_hi()).toBe(0x1);
   });
 
   it('handles out-of-range node/choice indices safely', () => {
     writeGraph(exp);
 
-    exp.uqm_conv_reset(999, 0, 0, 0, 0);
+    exp.uqm_conv_reset64(999, 0, 0, 0, 0, 0);
     expect(exp.uqm_conv_get_choice_count()).toBe(0);
     expect(exp.uqm_conv_choice_is_locked(0)).toBe(1);
     expect(exp.uqm_conv_choose(0)).toBe(-1);
 
-    exp.uqm_conv_reset(0, 0, 0, 0, 0);
+    exp.uqm_conv_reset64(0, 0, 0, 0, 0, 0);
     expect(exp.uqm_conv_choice_is_locked(99)).toBe(1);
     expect(exp.uqm_conv_choose(99)).toBe(-1);
   });

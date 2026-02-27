@@ -20,9 +20,12 @@ type CompiledGraph = {
   nodeIds: string[];
   nodeIdToIndex: Map<string, number>;
   secretToBit: Map<string, number>;
+  bitToSecret: (string | null)[];
+  secretBitCapacity: number;
+  choiceStrideBytes: number;
 };
 
-function compileGraph(): CompiledGraph {
+function compileGraph(secretBitCapacity: number, choiceStrideBytes: number): CompiledGraph {
   const nodeIds = Object.keys(dialogueTree).sort();
   const nodeIdToIndex = new Map<string, number>(nodeIds.map((id, idx) => [id, idx]));
 
@@ -32,14 +35,15 @@ function compileGraph(): CompiledGraph {
       if (c.revealsInfo) secrets.add(c.revealsInfo);
     }
   }
+
   const secretsSorted = [...secrets].sort();
-  // The minimal wasm core has a 32-bit secrets mask. If the narrative contains
-  // more than 32 unique secrets, we deterministically map the first 32 and
-  // ignore the rest for wasm purposes (the TS state still preserves all secrets).
-  const secretsForWasm = secretsSorted.slice(0, 32);
+  const secretsForWasm = secretsSorted.slice(0, secretBitCapacity);
   const secretToBit = new Map<string, number>(secretsForWasm.map((s, i) => [s, i]));
 
-  return { nodeIds, nodeIdToIndex, secretToBit };
+  const bitToSecret = new Array<string | null>(secretBitCapacity).fill(null);
+  for (let i = 0; i < secretsForWasm.length; i++) bitToSecret[i] = secretsForWasm[i];
+
+  return { nodeIds, nodeIdToIndex, secretToBit, bitToSecret, secretBitCapacity, choiceStrideBytes };
 }
 
 function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
@@ -50,7 +54,7 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
 
   let totalChoices = 0;
   for (const id of graph.nodeIds) totalChoices += dialogueTree[id].choices.length;
-  const choicesSize = totalChoices * 18;
+  const choicesSize = totalChoices * graph.choiceStrideBytes;
 
   const nodesPtr = exports.uqm_alloc(nodesSize);
   const choicesPtr = exports.uqm_alloc(choicesSize);
@@ -70,7 +74,7 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
     mem.setUint32(nodesPtr + 8 + nodeIdx * 8 + 4, node.choices.length, true);
 
     for (const choice of node.choices) {
-      const base = choicesPtr + choiceCursor * 18;
+      const base = choicesPtr + choiceCursor * graph.choiceStrideBytes;
 
       const nextIdx = choice.nextNodeId ? (graph.nodeIdToIndex.get(choice.nextNodeId) ?? -1) : -1;
       mem.setInt32(base + 0, nextIdx, true);
@@ -100,12 +104,19 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
       mem.setInt16(base + 10, reqFaction, true);
       mem.setInt16(base + 12, reqMin, true);
 
-      let revealMask = 0;
+      let revealLo = 0;
+      let revealHi = 0;
       if (choice.revealsInfo) {
         const bit = graph.secretToBit.get(choice.revealsInfo);
-        if (bit !== undefined) revealMask = 1 << bit;
+        if (bit !== undefined) {
+          if (bit < 32) revealLo = 1 << bit;
+          else revealHi = 1 << (bit - 32);
+        }
       }
-      mem.setUint32(base + 14, revealMask >>> 0, true);
+      mem.setUint32(base + 14, revealLo >>> 0, true);
+      if (graph.choiceStrideBytes >= 22) {
+        mem.setUint32(base + 18, revealHi >>> 0, true);
+      }
 
       choiceCursor++;
     }
@@ -114,13 +125,33 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
   exports.uqm_conv_set_graph(nodesPtr, choicesPtr);
 }
 
-function secretsMaskFromKnown(knownSecrets: string[], secretToBit: Map<string, number>): number {
-  let mask = 0;
+function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string, number>): { lo: number; hi: number } {
+  let lo = 0;
+  let hi = 0;
+
   for (const s of knownSecrets) {
     const bit = secretToBit.get(s);
-    if (bit !== undefined) mask |= 1 << bit;
+    if (bit === undefined) continue;
+
+    if (bit < 32) lo |= 1 << bit;
+    else hi |= 1 << (bit - 32);
   }
-  return mask >>> 0;
+
+  return { lo: lo >>> 0, hi: hi >>> 0 };
+}
+
+function secretsFromMask(graph: CompiledGraph, lo: number, hi: number): Set<string> {
+  const out = new Set<string>();
+
+  for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+    const isSet = bit < 32 ? ((lo >>> bit) & 1) === 1 : ((hi >>> (bit - 32)) & 1) === 1;
+    if (!isSet) continue;
+
+    const s = graph.bitToSecret[bit];
+    if (s) out.add(s);
+  }
+
+  return out;
 }
 
 function applyChoiceUsingWasm(
@@ -143,10 +174,14 @@ function applyChoiceUsingWasm(
   const rep1 = prev.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
   const rep2 = prev.factions.find(f => f.id === 'ember-throne')?.reputation ?? 0;
 
-  const secrets = secretsMaskFromKnown(prev.knownSecrets, graph.secretToBit);
+  const secretsMask = secretsMask64FromKnown(prev.knownSecrets, graph.secretToBit);
 
   const exp = uqm.exports;
-  exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secrets);
+  if (graph.secretBitCapacity > 32 && exp.uqm_conv_reset64) {
+    exp.uqm_conv_reset64(nodeIdx, rep0, rep1, rep2, secretsMask.lo, secretsMask.hi);
+  } else {
+    exp.uqm_conv_reset(nodeIdx, rep0, rep1, rep2, secretsMask.lo);
+  }
 
   if (exp.uqm_conv_choice_is_locked(localIdx) && !overrideLocked) {
     // Enforce locks at the engine level too.
@@ -178,7 +213,28 @@ function applyChoiceUsingWasm(
     return f;
   });
 
-  const newSecrets = choice.revealsInfo ? [...prev.knownSecrets, choice.revealsInfo] : prev.knownSecrets;
+  const secretsLo = exp.uqm_conv_get_secrets_lo ? exp.uqm_conv_get_secrets_lo() : exp.uqm_conv_get_secrets();
+  const secretsHi = exp.uqm_conv_get_secrets_hi ? exp.uqm_conv_get_secrets_hi() : 0;
+
+  const expected = secretsFromMask(graph, secretsLo >>> 0, secretsHi >>> 0);
+
+  const ordered: string[] = prev.knownSecrets.filter(s => {
+    if (!graph.secretToBit.has(s)) return true;
+    return expected.has(s);
+  });
+
+  if (choice.revealsInfo && expected.has(choice.revealsInfo) && !ordered.includes(choice.revealsInfo)) {
+    ordered.push(choice.revealsInfo);
+  }
+
+  // Ensure we didn't drop any secrets represented in the mask.
+  for (let bit = 0; bit < graph.secretBitCapacity; bit++) {
+    const s = graph.bitToSecret[bit];
+    if (!s) continue;
+    if (expected.has(s) && !ordered.includes(s)) ordered.push(s);
+  }
+
+  const newSecrets = [...new Set(ordered)];
 
   // Check events (same logic as TS engine)
   const newEvents = prev.events.map(event => {
@@ -261,7 +317,15 @@ function applyChoiceUsingWasm(
  * (next node, reputation deltas, choice locks) to WASM.
  */
 export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): ConversationEngine {
-  const graph = compileGraph();
+  const supports64 =
+    typeof uqm.exports.uqm_conv_reset64 === 'function' &&
+    typeof uqm.exports.uqm_conv_get_secrets_lo === 'function' &&
+    typeof uqm.exports.uqm_conv_get_secrets_hi === 'function';
+
+  const secretBitCapacity = supports64 ? 64 : 32;
+  const choiceStrideBytes = supports64 ? 22 : 18;
+
+  const graph = compileGraph(secretBitCapacity, choiceStrideBytes);
   writeGraphToWasm(uqm, graph);
 
   return {

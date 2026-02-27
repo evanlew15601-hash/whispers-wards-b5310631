@@ -6,10 +6,13 @@ export type UqmWasmExports = {
   uqm_line_fit_chars: (strPtr: number, maxWidth: number) => number;
 
   uqm_conv_reset: (startNode: number, rep0: number, rep1: number, rep2: number, secrets: number) => void;
+  uqm_conv_reset64?: (startNode: number, rep0: number, rep1: number, rep2: number, secretsLo: number, secretsHi: number) => void;
   uqm_conv_set_graph: (nodesPtr: number, choicesPtr: number) => void;
   uqm_conv_get_current_node: () => number;
   uqm_conv_get_rep: (idx: number) => number;
   uqm_conv_get_secrets: () => number;
+  uqm_conv_get_secrets_lo?: () => number;
+  uqm_conv_get_secrets_hi?: () => number;
   uqm_conv_get_choice_count: () => number;
   uqm_conv_choice_is_locked: (localIdx: number) => number;
   uqm_conv_choose: (localIdx: number) => number;
@@ -47,6 +50,9 @@ function getExports(instance: WebAssembly.Instance): UqmWasmExports {
   const uqm_conv_reset = (raw.uqm_conv_reset ?? raw._uqm_conv_reset) as
     | ((startNode: number, rep0: number, rep1: number, rep2: number, secrets: number) => void)
     | undefined;
+  const uqm_conv_reset64 = (raw.uqm_conv_reset64 ?? raw._uqm_conv_reset64) as
+    | ((startNode: number, rep0: number, rep1: number, rep2: number, secretsLo: number, secretsHi: number) => void)
+    | undefined;
   const uqm_conv_set_graph = (raw.uqm_conv_set_graph ?? raw._uqm_conv_set_graph) as
     | ((nodesPtr: number, choicesPtr: number) => void)
     | undefined;
@@ -57,6 +63,12 @@ function getExports(instance: WebAssembly.Instance): UqmWasmExports {
     | ((idx: number) => number)
     | undefined;
   const uqm_conv_get_secrets = (raw.uqm_conv_get_secrets ?? raw._uqm_conv_get_secrets) as
+    | (() => number)
+    | undefined;
+  const uqm_conv_get_secrets_lo = (raw.uqm_conv_get_secrets_lo ?? raw._uqm_conv_get_secrets_lo) as
+    | (() => number)
+    | undefined;
+  const uqm_conv_get_secrets_hi = (raw.uqm_conv_get_secrets_hi ?? raw._uqm_conv_get_secrets_hi) as
     | (() => number)
     | undefined;
   const uqm_conv_get_choice_count = (raw.uqm_conv_get_choice_count ?? raw._uqm_conv_get_choice_count) as
@@ -95,10 +107,13 @@ function getExports(instance: WebAssembly.Instance): UqmWasmExports {
     uqm_line_fit_chars,
 
     uqm_conv_reset,
+    uqm_conv_reset64,
     uqm_conv_set_graph,
     uqm_conv_get_current_node,
     uqm_conv_get_rep,
     uqm_conv_get_secrets,
+    uqm_conv_get_secrets_lo,
+    uqm_conv_get_secrets_hi,
     uqm_conv_get_choice_count,
     uqm_conv_choice_is_locked,
     uqm_conv_choose,

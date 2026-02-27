@@ -36,7 +36,7 @@ describe('dialogueTree integrity', () => {
     }
   });
 
-  it('stays within the WASM secret limit (32 unique revealsInfo strings)', () => {
+  it('stays within the WASM secret limit (64 unique revealsInfo strings)', () => {
     const secrets = new Set<string>();
 
     for (const node of Object.values(dialogueTree)) {
@@ -45,9 +45,9 @@ describe('dialogueTree integrity', () => {
       }
     }
 
-    // The minimal WASM conversation core uses a 32-bit mask for secrets.
-    // The TS engine will still work beyond 32, but the WASM engine will ignore extras.
-    expect(secrets.size).toBeLessThanOrEqual(32);
+    // The minimal WASM conversation core uses a 64-bit mask for secrets (lo/hi u32).
+    // The TS engine will still work beyond 64, but the WASM engine will ignore extras.
+    expect(secrets.size).toBeLessThanOrEqual(64);
   });
 
   it('keeps new investigative nodes reachable from the opening', () => {

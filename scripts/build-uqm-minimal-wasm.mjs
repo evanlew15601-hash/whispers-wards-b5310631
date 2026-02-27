@@ -67,6 +67,9 @@ function validateWasm(bytes) {
     if (!ok(['uqm_conv_get_current_node', '_uqm_conv_get_current_node'])) return false;
     if (!ok(['uqm_conv_get_rep', '_uqm_conv_get_rep'])) return false;
     if (!ok(['uqm_conv_get_secrets', '_uqm_conv_get_secrets'])) return false;
+    if (!ok(['uqm_conv_get_secrets_lo', '_uqm_conv_get_secrets_lo'])) return false;
+    if (!ok(['uqm_conv_get_secrets_hi', '_uqm_conv_get_secrets_hi'])) return false;
+    if (!ok(['uqm_conv_reset64', '_uqm_conv_reset64'])) return false;
     if (!ok(['uqm_conv_get_choice_count', '_uqm_conv_get_choice_count'])) return false;
     if (!ok(['uqm_conv_choice_is_locked', '_uqm_conv_choice_is_locked'])) return false;
     if (!ok(['uqm_conv_choose', '_uqm_conv_choose'])) return false;
@@ -113,6 +116,9 @@ for (const clang of clangCandidates) {
     '-Wl,--export=uqm_conv_get_current_node',
     '-Wl,--export=uqm_conv_get_rep',
     '-Wl,--export=uqm_conv_get_secrets',
+    '-Wl,--export=uqm_conv_get_secrets_lo',
+    '-Wl,--export=uqm_conv_get_secrets_hi',
+    '-Wl,--export=uqm_conv_reset64',
     '-Wl,--export=uqm_conv_get_choice_count',
     '-Wl,--export=uqm_conv_choice_is_locked',
     '-Wl,--export=uqm_conv_choose',
@@ -146,7 +152,7 @@ if (!built && commandExists('emcc')) {
     '-s',
     'ERROR_ON_UNDEFINED_SYMBOLS=1',
     '-s',
-    'EXPORTED_FUNCTIONS=["_uqm_alloc","_uqm_version_ptr","_uqm_version_len","_uqm_line_fit_chars","_uqm_conv_reset","_uqm_conv_set_graph","_uqm_conv_get_current_node","_uqm_conv_get_rep","_uqm_conv_get_secrets","_uqm_conv_get_choice_count","_uqm_conv_choice_is_locked","_uqm_conv_choose"]',
+    'EXPORTED_FUNCTIONS=["_uqm_alloc","_uqm_version_ptr","_uqm_version_len","_uqm_line_fit_chars","_uqm_conv_reset","_uqm_conv_reset64","_uqm_conv_set_graph","_uqm_conv_get_current_node","_uqm_conv_get_rep","_uqm_conv_get_secrets","_uqm_conv_get_secrets_lo","_uqm_conv_get_secrets_hi","_uqm_conv_get_choice_count","_uqm_conv_choice_is_locked","_uqm_conv_choose"]',
     '-Wl,--export-memory',
     '-o',
     outWasm,

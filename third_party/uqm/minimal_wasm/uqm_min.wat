@@ -48,7 +48,8 @@
   (global $conv_rep0 (mut i32) (i32.const 0))
   (global $conv_rep1 (mut i32) (i32.const 0))
   (global $conv_rep2 (mut i32) (i32.const 0))
-  (global $conv_secrets (mut i32) (i32.const 0))
+  (global $conv_secrets_lo (mut i32) (i32.const 0))
+  (global $conv_secrets_hi (mut i32) (i32.const 0))
 
   ;; Graph pointers
   (global $graph_nodes (mut i32) (i32.const 0))
@@ -212,7 +213,18 @@
     (global.set $conv_rep0 (local.get $rep0))
     (global.set $conv_rep1 (local.get $rep1))
     (global.set $conv_rep2 (local.get $rep2))
-    (global.set $conv_secrets (local.get $secrets))
+    (global.set $conv_secrets_lo (local.get $secrets))
+    (global.set $conv_secrets_hi (i32.const 0))
+  )
+
+  (func (export "uqm_conv_reset64")
+    (param $startNode i32) (param $rep0 i32) (param $rep1 i32) (param $rep2 i32) (param $secretsLo i32) (param $secretsHi i32)
+    (global.set $conv_currentNode (local.get $startNode))
+    (global.set $conv_rep0 (local.get $rep0))
+    (global.set $conv_rep1 (local.get $rep1))
+    (global.set $conv_rep2 (local.get $rep2))
+    (global.set $conv_secrets_lo (local.get $secretsLo))
+    (global.set $conv_secrets_hi (local.get $secretsHi))
   )
 
   (func (export "uqm_conv_set_graph") (param $nodesPtr i32) (param $choicesPtr i32)
@@ -238,7 +250,15 @@
   )
 
   (func (export "uqm_conv_get_secrets") (result i32)
-    (global.get $conv_secrets)
+    (global.get $conv_secrets_lo)
+  )
+
+  (func (export "uqm_conv_get_secrets_lo") (result i32)
+    (global.get $conv_secrets_lo)
+  )
+
+  (func (export "uqm_conv_get_secrets_hi") (result i32)
+    (global.get $conv_secrets_hi)
   )
 
   (func $uqm_conv_get_choice_count (export "uqm_conv_get_choice_count") (result i32)
@@ -286,7 +306,7 @@
       (then (return (i32.const 1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 18))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
 
     (local.set $reqFaction (i32.load16_s offset=10 (local.get $choicePtr)))
     (local.set $reqMin (i32.load16_s offset=12 (local.get $choicePtr)))
@@ -329,7 +349,8 @@
     (local $d0 i32)
     (local $d1 i32)
     (local $d2 i32)
-    (local $reveal i32)
+    (local $revealLo i32)
+    (local $revealHi i32)
 
     (if (call $uqm_conv_choice_is_locked (local.get $localIdx))
       (then (return (i32.const -1)))
@@ -346,18 +367,20 @@
       (then (return (i32.const -1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 18))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
 
     (local.set $nextNode (i32.load (local.get $choicePtr)))
     (local.set $d0 (i32.load16_s offset=4 (local.get $choicePtr)))
     (local.set $d1 (i32.load16_s offset=6 (local.get $choicePtr)))
     (local.set $d2 (i32.load16_s offset=8 (local.get $choicePtr)))
-    (local.set $reveal (i32.load offset=14 (local.get $choicePtr)))
+    (local.set $revealLo (i32.load offset=14 (local.get $choicePtr)))
+    (local.set $revealHi (i32.load offset=18 (local.get $choicePtr)))
 
     (global.set $conv_rep0 (i32.add (global.get $conv_rep0) (local.get $d0)))
     (global.set $conv_rep1 (i32.add (global.get $conv_rep1) (local.get $d1)))
     (global.set $conv_rep2 (i32.add (global.get $conv_rep2) (local.get $d2)))
-    (global.set $conv_secrets (i32.or (global.get $conv_secrets) (local.get $reveal)))
+    (global.set $conv_secrets_lo (i32.or (global.get $conv_secrets_lo) (local.get $revealLo)))
+    (global.set $conv_secrets_hi (i32.or (global.get $conv_secrets_hi) (local.get $revealHi)))
 
     (global.set $conv_currentNode (local.get $nextNode))
     (local.get $nextNode)

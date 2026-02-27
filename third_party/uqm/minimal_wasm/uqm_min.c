@@ -226,10 +226,11 @@ uqm_line_fit_chars (const char *str, uint32_t maxWidth)
  *     i16 d0, d1, d2;
  *     i16 reqFaction;
  *     i16 reqMin;
- *     u32 revealSecretMask;
+ *     u32 revealSecretMaskLo;
+ *     u32 revealSecretMaskHi;
  *   }
  *
- * ChoiceMeta is treated as packed (18 bytes).
+ * ChoiceMeta is treated as packed (22 bytes).
  */
 
 #if defined(__wasm__) || defined(__wasm32__) || defined(__wasm64__) || defined(__EMSCRIPTEN__)
@@ -240,7 +241,8 @@ uqm_line_fit_chars (const char *str, uint32_t maxWidth)
 
 static int32_t conv_currentNode;
 static int32_t conv_rep[3];
-static uint32_t conv_secretsMask;
+static uint32_t conv_secretsLo;
+static uint32_t conv_secretsHi;
 
 static uint32_t conv_nodesPtr;
 static uint32_t conv_choicesPtr;
@@ -299,7 +301,7 @@ conv_graph_node_meta_ptr (uint32_t nodeIdx)
 static uint32_t
 conv_graph_choice_ptr (uint32_t choiceIdx)
 {
-	return conv_choicesPtr + choiceIdx * 18u;
+	return conv_choicesPtr + choiceIdx * 22u;
 }
 
 static uint32_t
@@ -382,7 +384,21 @@ uqm_conv_reset (int32_t startNode, int32_t rep0, int32_t rep1, int32_t rep2,
 	conv_rep[0] = rep0;
 	conv_rep[1] = rep1;
 	conv_rep[2] = rep2;
-	conv_secretsMask = secrets;
+	conv_secretsLo = secrets;
+	conv_secretsHi = 0u;
+}
+
+UQM_WASM_EXPORT("uqm_conv_reset64")
+void
+uqm_conv_reset64 (int32_t startNode, int32_t rep0, int32_t rep1, int32_t rep2,
+		uint32_t secretsLo, uint32_t secretsHi)
+{
+	conv_currentNode = startNode;
+	conv_rep[0] = rep0;
+	conv_rep[1] = rep1;
+	conv_rep[2] = rep2;
+	conv_secretsLo = secretsLo;
+	conv_secretsHi = secretsHi;
 }
 
 UQM_WASM_EXPORT("uqm_conv_set_graph")
@@ -413,7 +429,21 @@ UQM_WASM_EXPORT("uqm_conv_get_secrets")
 uint32_t
 uqm_conv_get_secrets (void)
 {
-	return conv_secretsMask;
+	return conv_secretsLo;
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_secrets_lo")
+uint32_t
+uqm_conv_get_secrets_lo (void)
+{
+	return conv_secretsLo;
+}
+
+UQM_WASM_EXPORT("uqm_conv_get_secrets_hi")
+uint32_t
+uqm_conv_get_secrets_hi (void)
+{
+	return conv_secretsHi;
 }
 
 UQM_WASM_EXPORT("uqm_conv_get_choice_count")
@@ -442,7 +472,8 @@ uqm_conv_choose (int32_t localIdx)
 	uint32_t choicePtr;
 	int32_t nextNode;
 	int32_t d0, d1, d2;
-	uint32_t reveal;
+	uint32_t revealLo;
+	uint32_t revealHi;
 
 	if (conv_choice_is_locked_internal (localIdx))
 		return -1;
@@ -464,12 +495,14 @@ uqm_conv_choose (int32_t localIdx)
 	d0 = load_i16_le (choicePtr + 4u);
 	d1 = load_i16_le (choicePtr + 6u);
 	d2 = load_i16_le (choicePtr + 8u);
-	reveal = load_u32_le (choicePtr + 14u);
+	revealLo = load_u32_le (choicePtr + 14u);
+	revealHi = load_u32_le (choicePtr + 18u);
 
 	conv_rep[0] += d0;
 	conv_rep[1] += d1;
 	conv_rep[2] += d2;
-	conv_secretsMask |= reveal;
+	conv_secretsLo |= revealLo;
+	conv_secretsHi |= revealHi;
 	conv_currentNode = nextNode;
 
 	return nextNode;
