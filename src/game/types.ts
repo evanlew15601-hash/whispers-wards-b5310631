@@ -17,6 +17,8 @@ export interface DialogueChoice {
   }[];
   nextNodeId: string | null; // null = end conversation
   requiredReputation?: { factionId: string; min: number };
+  requiresAllSecrets?: string[];
+  requiresAnySecrets?: string[];
   revealsInfo?: string;
 }
 

@@ -1284,6 +1284,12 @@ export const dialogueTree: Record<string, DialogueNode> = {
           { factionId: 'verdant-court', reputationChange: 10 },
           { factionId: 'ember-throne', reputationChange: -40 },
         ],
+        requiresAnySecrets: [
+          'The Ember Throne forged maps to manipulate the border dispute.',
+          'Renzo\'s ledger pages show coded payments tied to the border killings.',
+          'Renzo\'s manifests list furnace salts disguised as "road salt" under a Concord Hall docket number.',
+          'Renzo sold you a curated ledger copy; it still suggests payments aligned with the killings.',
+        ],
         nextNodeId: 'ending-embers-fall',
         requiredReputation: { factionId: 'iron-pact', min: 5 },
         revealsInfo: 'You publicly accused the Ember Throne of engineering the conflict, citing maps, burns, and ledgers.',

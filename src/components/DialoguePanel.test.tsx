@@ -124,4 +124,64 @@ describe('DialoguePanel', () => {
 
     vi.useRealTimers();
   });
+
+  it('locks choices that require proof until the secret is known', () => {
+    vi.useFakeTimers();
+
+    const onChoice = vi.fn();
+
+    const node: DialogueNode = {
+      id: 'node-proof',
+      speaker: 'Narrator',
+      text: 'A short line of dialogue.',
+      choices: [
+        {
+          id: 'present-proof',
+          text: 'Present your proof.',
+          effects: [],
+          nextNodeId: 'node-2',
+          requiresAnySecrets: ['proof:ember'],
+        },
+      ],
+    };
+
+    const factions: Faction[] = [
+      {
+        id: 'ember-throne',
+        name: 'The Ember Throne',
+        description: '',
+        motto: '',
+        color: 'ember',
+        reputation: 0,
+        traits: [],
+      },
+    ];
+
+    const { rerender } = render(
+      <DialoguePanel
+        node={node}
+        onChoice={onChoice}
+        knownSecrets={[]}
+        factions={factions}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: ' ' });
+    fireEvent.keyDown(window, { key: '1' });
+    expect(onChoice).not.toHaveBeenCalled();
+
+    rerender(
+      <DialoguePanel
+        node={node}
+        onChoice={onChoice}
+        knownSecrets={['proof:ember']}
+        factions={factions}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: '1' });
+    expect(onChoice).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
 });

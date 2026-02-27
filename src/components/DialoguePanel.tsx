@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
-import { isChoiceLocked } from '@/game/choiceLocks';
+import { isChoiceLocked, isChoiceLockedBySecrets } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 
@@ -346,6 +346,8 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                 onChoice(choice);
               };
 
+              const secretsLocked = locked && isChoiceLockedBySecrets(choice, knownSecrets);
+
               return (
                 <motion.button
                   key={choice.id}
@@ -387,6 +389,13 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                           <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-muted-foreground">
                             <Lock className="h-3 w-3" />
                             requires {repReq.factionId.replace('-', ' ')} ≥ {repReq.min}
+                          </span>
+                        )}
+
+                        {secretsLocked && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-muted-foreground">
+                            <Lock className="h-3 w-3" />
+                            requires proof
                           </span>
                         )}
 
