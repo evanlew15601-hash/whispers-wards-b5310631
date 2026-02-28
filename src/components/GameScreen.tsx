@@ -179,6 +179,7 @@ const GameScreen = ({
 
         <motion.aside className="w-full shrink-0 lg:w-72" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
           <InfoPanel
+            currentDialogue={state.currentDialogue}
             knownSecrets={state.knownSecrets}
             turnNumber={state.turnNumber}
             log={state.log}

@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Faction, WorldState, SecondaryEncounter } from '@/game/types';
+import { DialogueNode, Faction, WorldState, SecondaryEncounter } from '@/game/types';
+import { getLeadHintsForCurrentDialogue } from '@/game/leads';
 import WorldMap from '@/components/WorldMap';
-import { Eye, Swords } from 'lucide-react';
+import { Compass, Eye, Swords } from 'lucide-react';
 
 interface InfoPanelProps {
+  currentDialogue: DialogueNode | null;
   knownSecrets: string[];
   turnNumber: number;
   log: string[];
@@ -17,9 +19,10 @@ interface InfoPanelProps {
 }
 
 const InfoPanel = (
-  { knownSecrets, turnNumber, log, world, factions, pendingEncounter, canAddressEncounter = false, onAddressEncounter }: InfoPanelProps,
+  { currentDialogue, knownSecrets, turnNumber, log, world, factions, pendingEncounter, canAddressEncounter = false, onAddressEncounter }: InfoPanelProps,
 ) => {
   const encounterTurnsLeft = pendingEncounter ? pendingEncounter.expiresOnTurn - turnNumber : null;
+  const leadHints = getLeadHintsForCurrentDialogue(currentDialogue, knownSecrets);
 
   return (
     <Tabs defaultValue="chronicle" className="flex flex-col gap-4">
@@ -43,6 +46,32 @@ const InfoPanel = (
       </TabsList>
 
       <TabsContent value="chronicle" className="mt-0 flex flex-col gap-6">
+        {/* Leads */}
+        {leadHints.length > 0 && (
+          <div className="parchment-border rounded-sm bg-card p-4">
+            <h3 className="mb-2 flex items-center gap-2 font-display text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              <Compass className="h-4 w-4" aria-hidden="true" />
+              Leads
+            </h3>
+            <p className="font-body text-xs text-muted-foreground">
+              Some arguments will land better with documentation. These are plausible threads—not instructions.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {leadHints.map((hint, i) => (
+                <motion.p
+                  key={hint}
+                  className="font-body text-xs italic text-card-foreground/80"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  • {hint}
+                </motion.p>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Secrets */}
         {knownSecrets.length > 0 && (
           <div className="parchment-border rounded-sm bg-card p-4">

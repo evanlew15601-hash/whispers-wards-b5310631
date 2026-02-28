@@ -5,7 +5,7 @@ import type { ComponentType, CSSProperties } from 'react';
 import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
 import { isChoiceLocked, isChoiceLockedBySecrets } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
-import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
+import { Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 
 import type { ChoiceUiHint } from '@/game/engine/conversationEngine';
 
@@ -354,7 +354,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                   type="button"
                   aria-disabled={locked}
                   aria-keyshortcuts={hotkey ?? undefined}
-                  title={locked && repReq ? `Requires ${reqFactionName} reputation ≥ ${repReq.min}` : undefined}
+                  title={locked && repReq ? `Requires ${reqFactionName ?? repReq.factionId.replace('-', ' ')} reputation ≥ ${repReq.min}` : undefined}
                   onClick={onSelect}
                   className={`group relative overflow-hidden rounded-sm border border-border bg-secondary/45 p-4 text-left font-body text-sm transition-all sm:text-base
                     ${locked
@@ -388,7 +388,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                         {repReq && locked && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-muted-foreground">
                             <Lock className="h-3 w-3" />
-                            requires {repReq.factionId.replace('-', ' ')} ≥ {repReq.min}
+                            requires {reqFactionName ?? repReq.factionId.replace('-', ' ')} ≥ {repReq.min}
                           </span>
                         )}
 
@@ -399,27 +399,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                           </span>
                         )}
 
-                        {(hint?.effects ?? choice.effects).map(effect => (
-                          <span
-                            key={effect.factionId}
-                            className={`text-[10px] font-display tracking-wider ${
-                              effect.reputationChange > 0
-                                ? 'text-primary'
-                                : effect.reputationChange < 0
-                                ? 'text-destructive'
-                                : 'text-muted-foreground'
-                            }`}
-                          >
-                            {effect.factionId.replace('-', ' ')} {effect.reputationChange > 0 ? '▲' : effect.reputationChange < 0 ? '▼' : '—'}
-                          </span>
-                        ))}
-
-                        {(hint?.revealsInfo ?? choice.revealsInfo) && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-accent">
-                            <Eye className="h-3 w-3" />
-                            intel
-                          </span>
-                        )}
+                        
                       </div>
                     </div>
                   </div>
