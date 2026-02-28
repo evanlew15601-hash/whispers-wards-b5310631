@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { tsConversationEngine, TS_OPENING_LOG_LINE } from './tsConversationEngine';
 import { dialogueTree } from '../data';
+import { makeChoiceKey } from '../choiceUsage';
 
 describe('tsConversationEngine', () => {
   it('startNewGame sets initial scene/dialogue/log', () => {
@@ -131,6 +132,60 @@ describe('tsConversationEngine', () => {
     const idx = back.currentDialogue!.choices.findIndex(c => c.id === 'followup-pass');
     expect(hints?.[idx]?.effects).toEqual([]);
   });
+
+  it('enforces idempotent reputation effects across the dialogue graph', () => {
+    const initial = tsConversationEngine.startNewGame();
+
+    const repMap = (factions: { id: string; reputation: number }[]) =>
+      Object.fromEntries(factions.map(f => [f.id, f.reputation] as const));
+
+    for (const node of Object.values(dialogueTree)) {
+      for (const choice of node.choices) {
+        const hasRepEffect = choice.effects.some(e => e.reputationChange !== 0);
+        if (!hasRepEffect) continue;
+
+        const requiredSecrets = [
+          ...(choice.requiresAllSecrets ?? []),
+          ...(choice.requiresAnySecrets?.[0] ? [choice.requiresAnySecrets[0]] : []),
+        ].filter(s => s !== 'override');
+
+        const factions = initial.factions.map(f => {
+          if (choice.requiredReputation?.factionId !== f.id) return { ...f };
+          return { ...f, reputation: Math.max(f.reputation, choice.requiredReputation.min) };
+        });
+
+        const seeded = {
+          ...initial,
+          currentDialogue: node,
+          rngSeed: 123456789,
+          knownSecrets: requiredSecrets,
+          factions,
+        };
+
+        const idx = node.choices.findIndex(c => c.id === choice.id);
+        expect(idx).toBeGreaterThanOrEqual(0);
+
+        const lockedFlags = tsConversationEngine.getChoiceLockedFlags(seeded);
+        expect(lockedFlags?.[idx]).toBe(false);
+
+        if (choice.revealsInfo === 'override') continue;
+
+        const choiceKey = makeChoiceKey(node.id, choice.id);
+
+        const next = tsConversationEngine.applyChoice(seeded, choice);
+        expect(next.usedChoiceKeys.includes(choiceKey)).toBe(true);
+
+        const back = {
+          ...next,
+          currentDialogue: node,
+        };
+
+        const nextAgain = tsConversationEngine.applyChoice(back, choice);
+
+        expect(repMap(nextAgain.factions)).toEqual(repMap(next.factions));
+      }
+    }
+  }, 30_000);
 
   it('locks one-time action choices (revealsInfo "You ...") after they are taken once', () => {
     const initial = tsConversationEngine.startNewGame();

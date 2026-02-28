@@ -43,5 +43,7 @@ export function shouldConsumeReputationEffects(choice: DialogueChoice, usedChoic
 }
 
 export function shouldRecordChoiceUse(choice: DialogueChoice): boolean {
+  // If you add new persistent choice consequences (items, resources, flags, etc.),
+  // include them here so they cannot be farmed by revisiting the same choice.
   return isOneTimeActionChoice(choice) || choiceHasNonZeroReputationEffects(choice);
 }
