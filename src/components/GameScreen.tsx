@@ -171,6 +171,7 @@ const GameScreen = ({
                 onChoice={makeChoice}
                 knownSecrets={state.knownSecrets}
                 factions={state.factions}
+                selectedChoiceIds={state.selectedChoiceIds}
                 playerName={state.player.name}
                 playerPortraitId={state.player.portraitId}
                 lockedChoices={choiceLockedFlags}

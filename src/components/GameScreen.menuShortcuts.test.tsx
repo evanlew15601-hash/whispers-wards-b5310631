@@ -33,6 +33,7 @@ const state: GameState = {
   currentDialogue: null,
   events: [],
   knownSecrets: [],
+  selectedChoiceIds: [],
   turnNumber: 12,
   log: [],
   rngSeed: 0,

@@ -105,6 +105,8 @@ export interface GameState {
   currentDialogue: DialogueNode | null;
   events: GameEvent[];
   knownSecrets: string[];
+  /** Choice ids previously selected, used to prevent re-applying non-repeatable reputation effects. */
+  selectedChoiceIds: string[];
   turnNumber: number;
   log: string[];
   rngSeed: number;

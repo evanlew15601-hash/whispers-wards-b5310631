@@ -195,7 +195,7 @@ function applyChoiceUsingWasm(
 ): GameState | null {
   if (!prev.currentDialogue) return null;
 
-  if (isChoiceLocked(choice, prev.factions, prev.knownSecrets)) {
+  if (isChoiceLocked(choice, prev.factions, prev.knownSecrets, prev.selectedChoiceIds)) {
     return prev;
   }
 
@@ -349,6 +349,7 @@ function applyChoiceUsingWasm(
     currentDialogue: nextDialogue,
     events: newEvents,
     knownSecrets: [...new Set(newSecrets)],
+    selectedChoiceIds: prev.selectedChoiceIds.includes(choice.id) ? prev.selectedChoiceIds : [...prev.selectedChoiceIds, choice.id],
     turnNumber: nextTurnNumber,
     log: [...newLog, ...worldLog, ...expiryLog],
     world: sim.world,
@@ -419,7 +420,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
               ? ((hi >>> (i - 32)) & 1) === 1
               : exp.uqm_conv_choice_is_locked(i) === 1;
 
-          return wasmLocked || isChoiceLocked(choice, state.factions, state.knownSecrets);
+          return wasmLocked || isChoiceLocked(choice, state.factions, state.knownSecrets, state.selectedChoiceIds);
         });
       }
 
@@ -427,7 +428,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
       for (let i = 0; i < count; i++) lockedFlags[i] = exp.uqm_conv_choice_is_locked(i) === 1;
 
       return state.currentDialogue.choices.map((choice, i) =>
-        (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets)
+        (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets, state.selectedChoiceIds)
       );
     },
     getChoiceUiHints(state): ChoiceUiHint[] | null {
@@ -474,7 +475,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
         typeof exp.uqm_conv_choice_get_reveal_hi === 'function';
 
       return state.currentDialogue.choices.map((choice, i) => {
-        const locked = (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets);
+        const locked = (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets, state.selectedChoiceIds);
 
         if (!canReadMeta) {
           return {

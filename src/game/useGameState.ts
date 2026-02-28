@@ -120,6 +120,7 @@ export function useGameState() {
       factions: loadedAny.factions ?? base.factions,
       events: loadedAny.events ?? base.events,
       knownSecrets: loadedAny.knownSecrets ?? base.knownSecrets,
+      selectedChoiceIds: (loadedAny as any).selectedChoiceIds ?? base.selectedChoiceIds,
       log: loadedAny.log ?? base.log,
       turnNumber: typeof loadedAny.turnNumber === 'number' ? loadedAny.turnNumber : base.turnNumber,
       rngSeed: typeof loadedAny.rngSeed === 'number' ? loadedAny.rngSeed : base.rngSeed,

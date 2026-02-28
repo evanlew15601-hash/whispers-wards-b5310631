@@ -1,6 +1,9 @@
 import type { DialogueChoice, Faction } from './types';
 
-type LockableChoice = Pick<DialogueChoice, 'requiredReputation' | 'requiresAllSecrets' | 'requiresAnySecrets'>;
+type LockableChoice = Pick<
+  DialogueChoice,
+  'id' | 'effects' | 'requiredReputation' | 'requiresAllSecrets' | 'requiresAnySecrets'
+>;
 
 type SecretLockableChoice = Pick<DialogueChoice, 'requiresAllSecrets' | 'requiresAnySecrets'>;
 
@@ -20,8 +23,24 @@ export function isChoiceLockedBySecrets(choice: SecretLockableChoice, knownSecre
   return false;
 }
 
-export function isChoiceLocked(choice: LockableChoice, factions: Faction[], knownSecrets: string[]): boolean {
+const hasNonZeroReputationEffect = (choice: Pick<DialogueChoice, 'effects'>) => {
+  return choice.effects.some(e => e.reputationChange !== 0);
+};
+
+export function isChoiceLockedByHistory(choice: Pick<DialogueChoice, 'id' | 'effects'>, selectedChoiceIds: string[]): boolean {
+  return selectedChoiceIds.includes(choice.id) && hasNonZeroReputationEffect(choice);
+}
+
+export function isChoiceLocked(
+  choice: LockableChoice,
+  factions: Faction[],
+  knownSecrets: string[],
+  selectedChoiceIds: string[] = [],
+): boolean {
   if (knownSecrets.includes('override')) return false;
+
+  // Prevent farming reputation by repeating past decisions.
+  if (isChoiceLockedByHistory(choice, selectedChoiceIds)) return true;
 
   if (isChoiceLockedBySecrets(choice, knownSecrets)) return true;
 

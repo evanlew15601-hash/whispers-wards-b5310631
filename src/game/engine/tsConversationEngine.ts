@@ -19,6 +19,7 @@ const createInitialState = (): GameState => ({
   currentDialogue: null,
   events: initialEvents.map(e => ({ ...e })),
   knownSecrets: [],
+  selectedChoiceIds: [],
   turnNumber: 1,
   log: [],
   rngSeed: createInitialRngSeed(),
@@ -36,8 +37,10 @@ const startNewGame = (): GameState => {
   };
 };
 
+const addChoiceId = (prevIds: string[], id: string) => (prevIds.includes(id) ? prevIds : [...prevIds, id]);
+
 const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
-  if (isChoiceLocked(choice, prev.factions, prev.knownSecrets)) {
+  if (isChoiceLocked(choice, prev.factions, prev.knownSecrets, prev.selectedChoiceIds)) {
     return prev;
   }
 
@@ -85,6 +88,7 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
       factions: newFactions,
       events: newEvents,
       knownSecrets: [...new Set(newSecrets)],
+      selectedChoiceIds: addChoiceId(prev.selectedChoiceIds, choice.id),
       // Return to the main hall hub so the campaign continues.
       currentDialogue: dialogueTree['concord-hub'] ?? prev.currentDialogue,
       pendingEncounter: null,
@@ -178,6 +182,7 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
     currentDialogue: nextDialogue,
     events: newEvents,
     knownSecrets: [...new Set(newSecrets)],
+    selectedChoiceIds: addChoiceId(prev.selectedChoiceIds, choice.id),
     turnNumber: nextTurnNumber,
     log: [...newLog, ...worldLog, ...expiryLog],
     world: sim.world,
@@ -192,12 +197,14 @@ export const tsConversationEngine: ConversationEngine = {
   applyChoice,
   getChoiceLockedFlags(state) {
     if (!state.currentDialogue) return null;
-    return state.currentDialogue.choices.map(choice => isChoiceLocked(choice, state.factions, state.knownSecrets));
+    return state.currentDialogue.choices.map(choice =>
+      isChoiceLocked(choice, state.factions, state.knownSecrets, state.selectedChoiceIds)
+    );
   },
   getChoiceUiHints(state) {
     if (!state.currentDialogue) return null;
     return state.currentDialogue.choices.map(choice => ({
-      locked: isChoiceLocked(choice, state.factions, state.knownSecrets),
+      locked: isChoiceLocked(choice, state.factions, state.knownSecrets, state.selectedChoiceIds),
       requiredReputation: choice.requiredReputation ?? null,
       effects: choice.effects,
       revealsInfo: choice.revealsInfo ?? null,

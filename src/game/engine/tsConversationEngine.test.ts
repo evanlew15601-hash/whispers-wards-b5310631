@@ -100,4 +100,34 @@ describe('tsConversationEngine', () => {
     expect(next).not.toBe(withProof);
     expect(next.currentDialogue?.id).toBe('ending-embers-fall');
   });
+
+  it('prevents repeating reputation-affecting choices (e.g. stealing Renzo\'s ledger pages)', () => {
+    const initial = tsConversationEngine.startNewGame();
+
+    const atLedger = {
+      ...initial,
+      currentDialogue: dialogueTree['renzo-ledger-request'],
+      rngSeed: 123456789,
+    };
+
+    const stealIdx = atLedger.currentDialogue!.choices.findIndex(c => c.id === 'ledger-steal');
+    expect(stealIdx).toBeGreaterThanOrEqual(0);
+
+    const stealChoice = atLedger.currentDialogue!.choices[stealIdx];
+
+    const afterSteal = tsConversationEngine.applyChoice(atLedger, stealChoice);
+    expect(afterSteal).not.toBe(atLedger);
+    expect(afterSteal.selectedChoiceIds).toContain('ledger-steal');
+
+    const revisit = {
+      ...afterSteal,
+      currentDialogue: dialogueTree['renzo-ledger-request'],
+    };
+
+    const lockedFlags = tsConversationEngine.getChoiceLockedFlags(revisit);
+    expect(lockedFlags?.[stealIdx]).toBe(true);
+
+    const shouldNotChange = tsConversationEngine.applyChoice(revisit, stealChoice);
+    expect(shouldNotChange).toBe(revisit);
+  });
 });

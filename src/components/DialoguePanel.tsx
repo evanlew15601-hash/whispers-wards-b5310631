@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
 import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } from '@/game/engine/uqmTextWrap';
-import { isChoiceLocked, isChoiceLockedBySecrets } from '@/game/choiceLocks';
+import { isChoiceLocked, isChoiceLockedByHistory, isChoiceLockedBySecrets } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
 import CommPortrait from '@/components/CommPortrait';
@@ -16,6 +16,7 @@ interface DialoguePanelProps {
   onChoice: (choice: DialogueChoice) => void;
   knownSecrets: string[];
   factions: Faction[];
+  selectedChoiceIds?: string[];
   playerPortraitId?: string;
   playerName?: string;
   lockedChoices?: boolean[] | null;
@@ -54,7 +55,7 @@ const isUserTyping = () => {
   return el.isContentEditable;
 };
 
-const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitId, playerName, lockedChoices, choiceUiHints }: DialoguePanelProps) => {
+const DialoguePanel = ({ node, onChoice, knownSecrets, factions, selectedChoiceIds = [], playerPortraitId, playerName, lockedChoices, choiceUiHints }: DialoguePanelProps) => {
   const { playSfx } = useAudio();
 
   const fullText = node.text;
@@ -221,7 +222,8 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitI
         const choice = node.choices[idx];
         if (!choice) return;
 
-        const locked = choiceUiHints?.[idx]?.locked ?? lockedChoices?.[idx] ?? isChoiceLocked(choice, factions, knownSecrets);
+        const locked =
+          choiceUiHints?.[idx]?.locked ?? lockedChoices?.[idx] ?? isChoiceLocked(choice, factions, knownSecrets, selectedChoiceIds);
 
         if (locked) {
           nudgeLockedChoice(choice.id);
@@ -235,7 +237,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitI
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, lockedChoices, choiceUiHints, onChoice, nudgeLockedChoice, playSfx]);
+  }, [isRevealing, skipReveal, node.choices, factions, knownSecrets, selectedChoiceIds, lockedChoices, choiceUiHints, onChoice, nudgeLockedChoice, playSfx]);
 
   const dialogueParagraphs = splitWrappedLinesIntoParagraphs(dialogueLines);
 
@@ -382,9 +384,13 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitI
             {node.choices.map((choice, i) => {
               const hint = choiceUiHints?.[i];
 
-              const locked = hint?.locked ?? lockedChoices?.[i] ?? isChoiceLocked(choice, factions, knownSecrets);
+              const locked = hint?.locked ?? lockedChoices?.[i] ?? isChoiceLocked(choice, factions, knownSecrets, selectedChoiceIds);
 
               const repReq = hint?.requiredReputation ?? choice.requiredReputation;
+
+              const repLocked = Boolean(
+                repReq && (factions.find(f => f.id === repReq.factionId)?.reputation ?? -Infinity) < repReq.min
+              );
 
               const reqFactionName = repReq
                 ? factions.find(f => f.id === repReq.factionId)?.name ?? repReq.factionId.replace('-', ' ')
@@ -404,6 +410,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitI
               };
 
               const secretsLocked = locked && isChoiceLockedBySecrets(choice, knownSecrets);
+              const historyLocked = locked && !repLocked && !secretsLocked && isChoiceLockedByHistory(choice, selectedChoiceIds);
 
               return (
                 <motion.button
@@ -462,6 +469,13 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitI
                           <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-muted-foreground">
                             <Lock className="h-3 w-3" />
                             requires proof
+                          </span>
+                        )}
+
+                        {historyLocked && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-display tracking-wider text-muted-foreground">
+                            <Lock className="h-3 w-3" />
+                            already decided
                           </span>
                         )}
 
