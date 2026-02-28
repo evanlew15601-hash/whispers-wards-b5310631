@@ -7,6 +7,7 @@ import { simulateWorldTurn } from '../simulation';
 import { tsConversationEngine } from './tsConversationEngine';
 import type { UqmWasmRuntime } from './uqmWasmRuntime';
 import { isChoiceLocked } from '../choiceLocks';
+import { makeChoiceKey, shouldBlockRepeat, shouldConsumeReputationEffects, shouldRecordChoiceUse, isChoiceUsed } from '../choiceUsage';
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -195,17 +196,34 @@ function applyChoiceUsingWasm(
 ): GameState | null {
   if (!prev.currentDialogue) return null;
 
+  const nodeId = prev.currentDialogue.id;
+  const overrideLocked = prev.knownSecrets.includes('override');
+
+  if (!overrideLocked && shouldBlockRepeat(choice, prev.usedChoiceKeys, nodeId, prev.knownSecrets)) {
+    return prev;
+  }
+
+  // If this is a repeat selection that would normally apply reputation deltas,
+  // fall back to the TS engine so we can keep the transition but skip re-applying.
+  if (!overrideLocked && shouldConsumeReputationEffects(choice, prev.usedChoiceKeys, nodeId)) {
+    return null;
+  }
+
   if (isChoiceLocked(choice, prev.factions, prev.knownSecrets)) {
     return prev;
   }
 
-  const nodeIdx = graph.nodeIdToIndex.get(prev.currentDialogue.id);
+  const choiceKey = makeChoiceKey(nodeId, choice.id);
+  const alreadyUsed = isChoiceUsed(prev.usedChoiceKeys, nodeId, choice.id);
+  const shouldRecord = !overrideLocked && shouldRecordChoiceUse(choice);
+  const nextUsedChoiceKeys =
+    shouldRecord && !alreadyUsed ? [...prev.usedChoiceKeys, choiceKey] : prev.usedChoiceKeys;
+
+  const nodeIdx = graph.nodeIdToIndex.get(nodeId);
   if (nodeIdx === undefined) return null;
 
   const localIdx = prev.currentDialogue.choices.findIndex(c => c.id === choice.id);
   if (localIdx < 0) return null;
-
-  const overrideLocked = prev.knownSecrets.includes('override');
 
   const rep0 = prev.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
   const rep1 = prev.factions.find(f => f.id === 'verdant-court')?.reputation ?? 0;
@@ -349,6 +367,7 @@ function applyChoiceUsingWasm(
     currentDialogue: nextDialogue,
     events: newEvents,
     knownSecrets: [...new Set(newSecrets)],
+    usedChoiceKeys: [...new Set(nextUsedChoiceKeys)],
     turnNumber: nextTurnNumber,
     log: [...newLog, ...worldLog, ...expiryLog],
     world: sim.world,
@@ -387,9 +406,12 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
     },
     getChoiceLockedFlags(state) {
       if (!state.currentDialogue) return null;
-      if (state.knownSecrets.includes('override')) return state.currentDialogue.choices.map(() => false);
 
-      const nodeIdx = graph.nodeIdToIndex.get(state.currentDialogue.id);
+      const nodeId = state.currentDialogue.id;
+      const overrideLocked = state.knownSecrets.includes('override');
+      if (overrideLocked) return state.currentDialogue.choices.map(() => false);
+
+      const nodeIdx = graph.nodeIdToIndex.get(nodeId);
       if (nodeIdx === undefined) return null;
 
       const rep0 = state.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
@@ -419,21 +441,27 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
               ? ((hi >>> (i - 32)) & 1) === 1
               : exp.uqm_conv_choice_is_locked(i) === 1;
 
-          return wasmLocked || isChoiceLocked(choice, state.factions, state.knownSecrets);
+          const repeatLocked = shouldBlockRepeat(choice, state.usedChoiceKeys, nodeId, state.knownSecrets);
+
+          return repeatLocked || wasmLocked || isChoiceLocked(choice, state.factions, state.knownSecrets);
         });
       }
 
       const lockedFlags: boolean[] = new Array(count);
       for (let i = 0; i < count; i++) lockedFlags[i] = exp.uqm_conv_choice_is_locked(i) === 1;
 
-      return state.currentDialogue.choices.map((choice, i) =>
-        (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets)
-      );
+      return state.currentDialogue.choices.map((choice, i) => {
+        const repeatLocked = shouldBlockRepeat(choice, state.usedChoiceKeys, nodeId, state.knownSecrets);
+        return repeatLocked || (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets);
+      });
     },
     getChoiceUiHints(state): ChoiceUiHint[] | null {
       if (!state.currentDialogue) return null;
 
-      const nodeIdx = graph.nodeIdToIndex.get(state.currentDialogue.id);
+      const nodeId = state.currentDialogue.id;
+      const overrideLocked = state.knownSecrets.includes('override');
+
+      const nodeIdx = graph.nodeIdToIndex.get(nodeId);
       if (nodeIdx === undefined) return null;
 
       const rep0 = state.factions.find(f => f.id === 'iron-pact')?.reputation ?? 0;
@@ -450,7 +478,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
       }
 
       let lockedFlags: boolean[];
-      if (state.knownSecrets.includes('override')) {
+      if (overrideLocked) {
         lockedFlags = state.currentDialogue.choices.map(() => false);
       } else if (exp.uqm_conv_get_locked_choices_lo && exp.uqm_conv_get_locked_choices_hi) {
         const lo = exp.uqm_conv_get_locked_choices_lo() >>> 0;
@@ -474,13 +502,19 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
         typeof exp.uqm_conv_choice_get_reveal_hi === 'function';
 
       return state.currentDialogue.choices.map((choice, i) => {
-        const locked = (lockedFlags[i] ?? false) || isChoiceLocked(choice, state.factions, state.knownSecrets);
+        const repeatLocked = !overrideLocked && shouldBlockRepeat(choice, state.usedChoiceKeys, nodeId, state.knownSecrets);
+        const locked =
+          repeatLocked ||
+          (lockedFlags[i] ?? false) ||
+          isChoiceLocked(choice, state.factions, state.knownSecrets);
+
+        const consumed = !overrideLocked && shouldConsumeReputationEffects(choice, state.usedChoiceKeys, nodeId);
 
         if (!canReadMeta) {
           return {
             locked,
             requiredReputation: choice.requiredReputation ?? null,
-            effects: choice.effects,
+            effects: consumed ? [] : choice.effects,
             revealsInfo: choice.revealsInfo ?? null,
           };
         }
@@ -513,7 +547,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
         return {
           locked,
           requiredReputation: reqFactionId ? { factionId: reqFactionId, min: reqMin } : null,
-          effects,
+          effects: consumed ? [] : effects,
           revealsInfo: revealInfo,
         };
       });

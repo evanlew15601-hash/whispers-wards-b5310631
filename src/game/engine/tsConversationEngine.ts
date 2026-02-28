@@ -6,6 +6,7 @@ import { createInitialRngSeed, createInitialWorldState } from '../world';
 import { applyExpiredEncounterConsequence, parseEncounterResolutionChoiceId, resolveEncounter } from '../encounters';
 import { simulateWorldTurn } from '../simulation';
 import { isChoiceLocked } from '../choiceLocks';
+import { isChoiceUsed, makeChoiceKey, shouldConsumeReputationEffects, shouldBlockRepeat, shouldRecordChoiceUse } from '../choiceUsage';
 import { DEFAULT_PLAYER_PROFILE } from '../player';
 
 const OPENING_LOG_LINE = 'You arrive at the Concord Hall as envoy to the fractured realm...';
@@ -19,11 +20,13 @@ const createInitialState = (): GameState => ({
   currentDialogue: null,
   events: initialEvents.map(e => ({ ...e })),
   knownSecrets: [],
+  usedChoiceKeys: [],
   turnNumber: 1,
   log: [],
   rngSeed: createInitialRngSeed(),
   world: createInitialWorldState(initialFactions),
   pendingEncounter: null,
+  encounterReturnDialogueId: null,
 });
 
 const startNewGame = (): GameState => {
@@ -37,25 +40,50 @@ const startNewGame = (): GameState => {
 };
 
 const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
+  if (!prev.currentDialogue) return prev;
+
   if (isChoiceLocked(choice, prev.factions, prev.knownSecrets)) {
     return prev;
   }
+
+  const nodeId = prev.currentDialogue.id;
+  const overrideLocked = prev.knownSecrets.includes('override');
+
+  if (!overrideLocked && shouldBlockRepeat(choice, prev.usedChoiceKeys, nodeId, prev.knownSecrets)) {
+    return prev;
+  }
+
+  const choiceKey = makeChoiceKey(nodeId, choice.id);
+  const alreadyUsed = isChoiceUsed(prev.usedChoiceKeys, nodeId, choice.id);
+
+  const consumeRepEffects = !overrideLocked && shouldConsumeReputationEffects(choice, prev.usedChoiceKeys, nodeId);
+
+  const shouldApplyRepEffects = !consumeRepEffects;
+
+  const isNewSecret =
+    typeof choice.revealsInfo === 'string' && !prev.knownSecrets.includes(choice.revealsInfo);
+
+  const newSecrets = isNewSecret ? [...prev.knownSecrets, choice.revealsInfo!] : prev.knownSecrets;
+
+  const shouldRecord = !overrideLocked && shouldRecordChoiceUse(choice);
+  const nextUsedChoiceKeys =
+    shouldRecord && !alreadyUsed ? [...prev.usedChoiceKeys, choiceKey] : prev.usedChoiceKeys;
 
   const encounterPick = prev.pendingEncounter ? parseEncounterResolutionChoiceId(choice.id) : null;
   if (prev.pendingEncounter && encounterPick && encounterPick.encounterId === prev.pendingEncounter.id) {
     // Even though encounter choices are dynamically generated, we still want to apply
     // any standard choice side-effects (rep, secrets, event triggers).
-    const newFactions = prev.factions.map(f => {
-      const effect = choice.effects.find(e => e.factionId === f.id);
-      if (!effect) return f;
+    const newFactions = shouldApplyRepEffects
+      ? prev.factions.map(f => {
+          const effect = choice.effects.find(e => e.factionId === f.id);
+          if (!effect) return f;
 
-      return {
-        ...f,
-        reputation: clamp(f.reputation + effect.reputationChange, -100, 100),
-      };
-    });
-
-    const newSecrets = choice.revealsInfo ? [...prev.knownSecrets, choice.revealsInfo] : prev.knownSecrets;
+          return {
+            ...f,
+            reputation: clamp(f.reputation + effect.reputationChange, -100, 100),
+          };
+        })
+      : prev.factions;
 
     const newEvents = prev.events.map(event => {
       if (event.triggered || !event.triggerCondition) return event;
@@ -80,36 +108,41 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
       resolution: encounterPick.resolution,
     });
 
+    const returnId = prev.encounterReturnDialogueId;
+    const returnDialogue =
+      returnId && !returnId.startsWith('encounter:') ? (dialogueTree[returnId] ?? null) : null;
+
     return {
       ...prev,
       factions: newFactions,
       events: newEvents,
       knownSecrets: [...new Set(newSecrets)],
-      // Return to the main hall hub so the campaign continues.
-      currentDialogue: dialogueTree['concord-hub'] ?? prev.currentDialogue,
+      usedChoiceKeys: [...new Set(nextUsedChoiceKeys)],
+      currentDialogue: returnDialogue ?? dialogueTree['concord-hub'] ?? prev.currentDialogue,
       pendingEncounter: null,
+      encounterReturnDialogueId: null,
       log: [
         ...prev.log,
         `> ${choice.text}`,
         ...triggeredEvents.map(e => `⚡ Event: ${e.title} — ${e.description}`),
-        ...(choice.revealsInfo ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
+        ...(isNewSecret ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
         ...resolved.logEntries,
       ],
       world: resolved.world,
     };
   }
 
-  const newFactions = prev.factions.map(f => {
-    const effect = choice.effects.find(e => e.factionId === f.id);
-    if (!effect) return f;
+  const newFactions = shouldApplyRepEffects
+    ? prev.factions.map(f => {
+        const effect = choice.effects.find(e => e.factionId === f.id);
+        if (!effect) return f;
 
-    return {
-      ...f,
-      reputation: clamp(f.reputation + effect.reputationChange, -100, 100),
-    };
-  });
-
-  const newSecrets = choice.revealsInfo ? [...prev.knownSecrets, choice.revealsInfo] : prev.knownSecrets;
+        return {
+          ...f,
+          reputation: clamp(f.reputation + effect.reputationChange, -100, 100),
+        };
+      })
+    : prev.factions;
 
   // Check events
   const newEvents = prev.events.map(event => {
@@ -132,7 +165,7 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
     ...prev.log,
     `> ${choice.text}`,
     ...triggeredEvents.map(e => `⚡ Event: ${e.title} — ${e.description}`),
-    ...(choice.revealsInfo ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
+    ...(isNewSecret ? [`🔍 Secret learned: ${choice.revealsInfo}`] : []),
   ];
 
   const nextDialogue = choice.nextNodeId ? dialogueTree[choice.nextNodeId] || null : null;
@@ -178,6 +211,7 @@ const applyChoice = (prev: GameState, choice: DialogueChoice): GameState => {
     currentDialogue: nextDialogue,
     events: newEvents,
     knownSecrets: [...new Set(newSecrets)],
+    usedChoiceKeys: [...new Set(nextUsedChoiceKeys)],
     turnNumber: nextTurnNumber,
     log: [...newLog, ...worldLog, ...expiryLog],
     world: sim.world,
@@ -192,16 +226,34 @@ export const tsConversationEngine: ConversationEngine = {
   applyChoice,
   getChoiceLockedFlags(state) {
     if (!state.currentDialogue) return null;
-    return state.currentDialogue.choices.map(choice => isChoiceLocked(choice, state.factions, state.knownSecrets));
+
+    const nodeId = state.currentDialogue.id;
+    const overrideLocked = state.knownSecrets.includes('override');
+
+    return state.currentDialogue.choices.map(choice => {
+      const repeatLocked = !overrideLocked && shouldBlockRepeat(choice, state.usedChoiceKeys, nodeId, state.knownSecrets);
+      return repeatLocked || isChoiceLocked(choice, state.factions, state.knownSecrets);
+    });
   },
   getChoiceUiHints(state) {
     if (!state.currentDialogue) return null;
-    return state.currentDialogue.choices.map(choice => ({
-      locked: isChoiceLocked(choice, state.factions, state.knownSecrets),
-      requiredReputation: choice.requiredReputation ?? null,
-      effects: choice.effects,
-      revealsInfo: choice.revealsInfo ?? null,
-    }));
+
+    const nodeId = state.currentDialogue.id;
+    const overrideLocked = state.knownSecrets.includes('override');
+
+    return state.currentDialogue.choices.map(choice => {
+      const repeatLocked = !overrideLocked && shouldBlockRepeat(choice, state.usedChoiceKeys, nodeId, state.knownSecrets);
+      const locked = repeatLocked || isChoiceLocked(choice, state.factions, state.knownSecrets);
+
+      const consumed = !overrideLocked && shouldConsumeReputationEffects(choice, state.usedChoiceKeys, nodeId);
+
+      return {
+        locked,
+        requiredReputation: choice.requiredReputation ?? null,
+        effects: consumed ? [] : choice.effects,
+        revealsInfo: choice.revealsInfo ?? null,
+      };
+    });
   },
 };
 

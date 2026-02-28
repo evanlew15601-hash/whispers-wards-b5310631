@@ -61,6 +61,7 @@ const baseState: GameState = {
   currentDialogue: hubDialogue,
   events: [],
   knownSecrets: [],
+  usedChoiceKeys: [],
   turnNumber: 12,
   log: [],
   rngSeed: 0,
@@ -73,6 +74,7 @@ const baseState: GameState = {
     aiMemory: { lastOfferTurn: {}, lastEmbargoTurn: {} },
   },
   pendingEncounter: null,
+  encounterReturnDialogueId: null,
 };
 
 const saveSlots: SaveSlotInfo[] = [{ id: 1, meta: null }];
@@ -96,13 +98,13 @@ const renderScreen = (state: GameState, enterPendingEncounter = vi.fn()) =>
   );
 
 describe('GameScreen encounter prompt', () => {
-  it('renders an Address encounter button in the hub when a pending encounter exists, and calls handler', () => {
+  it('renders an Address encounter button when a pending encounter exists (outside encounter dialogue), and calls handler', () => {
     const enterPendingEncounter = vi.fn();
 
     renderScreen(
       {
         ...baseState,
-        currentDialogue: hubDialogue,
+        currentDialogue: otherDialogue,
         pendingEncounter,
       },
       enterPendingEncounter,
@@ -114,17 +116,22 @@ describe('GameScreen encounter prompt', () => {
     expect(enterPendingEncounter).toHaveBeenCalledTimes(1);
   });
 
-  it('does not render the Address encounter button outside hub+pendingEncounter', () => {
+  it('renders an Address encounter button even when the current dialogue has ended, if a pending encounter exists', () => {
+    renderScreen({
+      ...baseState,
+      currentDialogue: null,
+      pendingEncounter,
+    });
+
+    expect(screen.getByRole('button', { name: /address encounter/i })).toBeInTheDocument();
+  });
+
+  it('does not render the Address encounter button when no pending encounter exists or when already in encounter dialogue', () => {
     const cases: GameState[] = [
       {
         ...baseState,
         currentDialogue: hubDialogue,
         pendingEncounter: null,
-      },
-      {
-        ...baseState,
-        currentDialogue: otherDialogue,
-        pendingEncounter,
       },
       {
         ...baseState,

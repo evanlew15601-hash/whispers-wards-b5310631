@@ -33,6 +33,7 @@ const state: GameState = {
   currentDialogue: null,
   events: [],
   knownSecrets: [],
+  usedChoiceKeys: [],
   turnNumber: 12,
   log: [],
   rngSeed: 0,
@@ -45,6 +46,7 @@ const state: GameState = {
     aiMemory: { lastOfferTurn: {}, lastEmbargoTurn: {} },
   },
   pendingEncounter: null,
+  encounterReturnDialogueId: null,
 };
 
 const saveSlots: SaveSlotInfo[] = [

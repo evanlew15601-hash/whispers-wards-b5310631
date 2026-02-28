@@ -147,6 +147,7 @@ describe('useGameState', () => {
 
     expect(result.current.state.pendingEncounter?.id).toBe('enc-test');
     expect(result.current.state.currentDialogue?.id).toBe('concord-hub');
+    expect(result.current.state.encounterReturnDialogueId).toBeNull();
 
     await act(async () => {
       result.current.enterPendingEncounter();
@@ -154,6 +155,7 @@ describe('useGameState', () => {
 
     expect(result.current.state.currentDialogue?.id).toBe('encounter:enc-test');
     expect(result.current.state.currentDialogue?.choices.length).toBeGreaterThan(0);
+    expect(result.current.state.encounterReturnDialogueId).toBe('concord-hub');
   });
 
   it('saveToSlot reports failure when persistence fails', async () => {

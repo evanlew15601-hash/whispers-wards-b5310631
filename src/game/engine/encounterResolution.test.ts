@@ -26,6 +26,7 @@ const createBaseState = (world: WorldState, encounter: SecondaryEncounter): Game
     world,
     currentDialogue: encounterNode,
     pendingEncounter: encounter,
+    encounterReturnDialogueId: 'opening',
   };
 };
 
@@ -56,7 +57,8 @@ describe('encounter resolution (engine integration)', () => {
       const next = tsConversationEngine.applyChoice(start, choice);
 
       expect(next.pendingEncounter).toBeNull();
-      expect(next.currentDialogue?.id).toBe('concord-hub');
+      expect(next.currentDialogue?.id).toBe('opening');
+      expect(next.encounterReturnDialogueId).toBeNull();
       expect(next.log.some(l => l.startsWith('⚔'))).toBe(true);
 
       const resolution = parseEncounterResolutionChoiceId(choice.id)!.resolution;
@@ -110,7 +112,8 @@ describe('encounter resolution (engine integration)', () => {
       const next = tsConversationEngine.applyChoice(start, choice);
 
       expect(next.pendingEncounter).toBeNull();
-      expect(next.currentDialogue?.id).toBe('concord-hub');
+      expect(next.currentDialogue?.id).toBe('opening');
+      expect(next.encounterReturnDialogueId).toBeNull();
       expect(next.log.some(l => l.startsWith('⚔'))).toBe(true);
 
       const resolution = parseEncounterResolutionChoiceId(choice.id)!.resolution;
@@ -161,7 +164,8 @@ describe('encounter resolution (engine integration)', () => {
       const next = tsConversationEngine.applyChoice(start, choice);
 
       expect(next.pendingEncounter).toBeNull();
-      expect(next.currentDialogue?.id).toBe('concord-hub');
+      expect(next.currentDialogue?.id).toBe('opening');
+      expect(next.encounterReturnDialogueId).toBeNull();
       expect(next.log.some(l => l.startsWith('⚔'))).toBe(true);
 
       const resolution = parseEncounterResolutionChoiceId(choice.id)!.resolution;
@@ -209,7 +213,8 @@ describe('encounter resolution (engine integration)', () => {
       const next = tsConversationEngine.applyChoice(start, choice);
 
       expect(next.pendingEncounter).toBeNull();
-      expect(next.currentDialogue?.id).toBe('concord-hub');
+      expect(next.currentDialogue?.id).toBe('opening');
+      expect(next.encounterReturnDialogueId).toBeNull();
       expect(next.log.some(l => l.startsWith('⚔'))).toBe(true);
 
       const resolution = parseEncounterResolutionChoiceId(choice.id)!.resolution;

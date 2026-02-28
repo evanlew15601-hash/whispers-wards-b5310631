@@ -33,12 +33,13 @@ describe('game storage', () => {
 
     const persisted = JSON.parse(raw as string) as {
       version: number;
-      slots: Record<string, { state?: { currentDialogueId?: unknown; player?: unknown } }>;
+      slots: Record<string, { state?: { currentDialogueId?: unknown; player?: unknown; encounterReturnDialogueId?: unknown } }>;
     };
 
     expect(persisted.version).toBe(2);
     expect(persisted.slots['1']?.state?.currentDialogueId).toBe(state.currentDialogue?.id ?? null);
     expect(persisted.slots['1']?.state?.player).toEqual(state.player);
+    expect(persisted.slots['1']?.state?.encounterReturnDialogueId).toBeNull();
 
     const slots = listSaveSlots();
     expect(slots[0].meta?.turnNumber).toBe(state.turnNumber);
@@ -48,6 +49,7 @@ describe('game storage', () => {
     expect(loaded?.turnNumber).toBe(state.turnNumber);
     expect(loaded?.currentDialogue?.id).toBe(state.currentDialogue?.id);
     expect(loaded?.player).toEqual(state.player);
+    expect((loaded as any)?.encounterReturnDialogueId).toBeNull();
 
     expect(deleteSaveSlot(1)).toBe(true);
     expect(loadGameFromSlot(1)).toBeNull();
