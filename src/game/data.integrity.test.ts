@@ -54,12 +54,14 @@ describe('dialogueTree integrity', () => {
     }
   });
 
-  it('stays within the WASM secret limit (64 unique revealsInfo strings)', () => {
+  it('stays within the WASM secret limit (64 unique secrets across reveals + requirements)', () => {
     const secrets = new Set<string>();
 
     for (const node of Object.values(dialogueTree)) {
       for (const choice of node.choices) {
         if (choice.revealsInfo) secrets.add(choice.revealsInfo);
+        for (const s of choice.requiresAllSecrets ?? []) secrets.add(s);
+        for (const s of choice.requiresAnySecrets ?? []) secrets.add(s);
       }
     }
 

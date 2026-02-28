@@ -228,9 +228,15 @@ uqm_line_fit_chars (const char *str, uint32_t maxWidth)
  *     i16 reqMin;
  *     u32 revealSecretMaskLo;
  *     u32 revealSecretMaskHi;
+ *
+ *     // Optional proof-gating (based on the same secrets bitmask as reveals):
+ *     u32 requiresAllMaskLo;
+ *     u32 requiresAllMaskHi;
+ *     u32 requiresAnyMaskLo;
+ *     u32 requiresAnyMaskHi;
  *   }
  *
- * ChoiceMeta is treated as packed (22 bytes).
+ * ChoiceMeta is treated as packed (38 bytes).
  */
 
 #if defined(__wasm__) || defined(__wasm32__) || defined(__wasm64__) || defined(__EMSCRIPTEN__)
@@ -301,7 +307,7 @@ conv_graph_node_meta_ptr (uint32_t nodeIdx)
 static uint32_t
 conv_graph_choice_ptr (uint32_t choiceIdx)
 {
-	return conv_choicesPtr + choiceIdx * 22u;
+	return conv_choicesPtr + choiceIdx * 38u;
 }
 
 static uint32_t
@@ -363,11 +369,33 @@ conv_choice_is_locked_internal (int32_t localIdx)
 	int32_t reqFaction;
 	int32_t reqMin;
 	int32_t rep;
+	uint32_t allLo, allHi;
+	uint32_t anyLo, anyHi;
+	uint32_t okAll;
+	uint32_t okAny;
 
 	choicePtr = conv_choice_ptr_local (localIdx);
 	if (choicePtr == 0)
 		return 1;
 
+	// Proof/secret gating.
+	allLo = load_u32_le (choicePtr + 22u);
+	allHi = load_u32_le (choicePtr + 26u);
+	anyLo = load_u32_le (choicePtr + 30u);
+	anyHi = load_u32_le (choicePtr + 34u);
+
+	okAll = ((conv_secretsLo & allLo) == allLo) && ((conv_secretsHi & allHi) == allHi);
+	if (!okAll)
+		return 1;
+
+	if (anyLo != 0u || anyHi != 0u)
+	{
+		okAny = ((conv_secretsLo & anyLo) != 0u) || ((conv_secretsHi & anyHi) != 0u);
+		if (!okAny)
+			return 1;
+	}
+
+	// Reputation gating.
 	reqFaction = load_i16_le (choicePtr + 10u);
 	reqMin = load_i16_le (choicePtr + 12u);
 

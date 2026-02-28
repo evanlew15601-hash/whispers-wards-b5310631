@@ -42,6 +42,11 @@ const pendingEncounter: SecondaryEncounter = {
 
 const baseState: GameState = {
   currentScene: 'game',
+  player: {
+    name: 'Envoy',
+    pronouns: 'they/them',
+    portraitId: 'envoy-default',
+  },
   factions: [
     {
       id: 'iron',

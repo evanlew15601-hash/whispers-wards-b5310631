@@ -8,7 +8,7 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   const totalChoices = 2;
 
   const nodesSize = 8 + nodeCount * 8;
-  const choicesSize = totalChoices * 22;
+  const choicesSize = totalChoices * 38;
 
   const blobPtr = exports.uqm_alloc(nodesSize + choicesSize);
   const nodesPtr = blobPtr;
@@ -29,14 +29,18 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setUint32(nodesPtr + 8 + 8 + 4, 1, true);
 
   // choice 0 (node 0 -> node 1)
-  // Layout (packed 22 bytes):
+  // Layout (packed 38 bytes):
   // i32 nextNode @0
   // i16 d0,d1,d2 @4,@6,@8
   // i16 reqFaction @10
   // i16 reqMin @12
   // u32 revealMaskLo @14
   // u32 revealMaskHi @18
-  let base = choicesPtr + 0 * 22;
+  // u32 requiresAllLo @22
+  // u32 requiresAllHi @26
+  // u32 requiresAnyLo @30
+  // u32 requiresAnyHi @34
+  let base = choicesPtr + 0 * 38;
   mem.setInt32(base + 0, 1, true);
   mem.setInt16(base + 4, 5, true);
   mem.setInt16(base + 6, -3, true);
@@ -45,9 +49,13 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setInt16(base + 12, 0, true);
   mem.setUint32(base + 14, 0x1, true);
   mem.setUint32(base + 18, 0x1, true);
+  mem.setUint32(base + 22, 0x0, true);
+  mem.setUint32(base + 26, 0x0, true);
+  mem.setUint32(base + 30, 0x0, true);
+  mem.setUint32(base + 34, 0x0, true);
 
-  // choice 1 (node 1 -> end), gated on rep0 >= 10
-  base = choicesPtr + 1 * 22;
+  // choice 1 (node 1 -> end), gated on rep0 >= 10 and requires any secret 0x4
+  base = choicesPtr + 1 * 38;
   mem.setInt32(base + 0, -1, true);
   mem.setInt16(base + 4, 0, true);
   mem.setInt16(base + 6, 0, true);
@@ -56,6 +64,10 @@ function writeGraph(exports: UqmMinimalNormalizedExports) {
   mem.setInt16(base + 12, 10, true);
   mem.setUint32(base + 14, 0x2, true);
   mem.setUint32(base + 18, 0x0, true);
+  mem.setUint32(base + 22, 0x0, true);
+  mem.setUint32(base + 26, 0x0, true);
+  mem.setUint32(base + 30, 0x4, true);
+  mem.setUint32(base + 34, 0x0, true);
 
   exports.uqm_conv_set_graph_blob(blobPtr);
 }
@@ -67,7 +79,7 @@ describe('uqm minimal wasm conversation core', () => {
     exp = await loadUqmMinimalWasmExports();
   }, 60_000);
 
-  it('uses the expected packed ChoiceMeta (22 bytes) with little-endian loads', () => {
+  it('uses the expected packed ChoiceMeta (38 bytes) with little-endian loads', () => {
     writeGraph(exp);
 
     exp.uqm_conv_reset(0, 0, 0, 0, 0);
@@ -127,14 +139,15 @@ describe('uqm minimal wasm conversation core', () => {
     expect(exp.uqm_conv_get_secrets_hi()).toBe(0x1);
 
     // Now unlock and choose.
-    exp.uqm_conv_reset64(1, 10, 0, 0, 0x1, 0x1);
+    // Choice 1 requires rep0 >= 10 and any-of secret mask 0x4.
+    exp.uqm_conv_reset64(1, 10, 0, 0, 0x5, 0x1);
     expect(exp.uqm_conv_choice_is_locked(0)).toBe(0);
     expect(exp.uqm_conv_get_locked_choices_lo()).toBe(0x0);
     expect(exp.uqm_conv_get_locked_choices_hi()).toBe(0x0);
 
     expect(exp.uqm_conv_choose(0)).toBe(-1);
     expect(exp.uqm_conv_get_current_node()).toBe(-1);
-    expect(exp.uqm_conv_get_secrets_lo()).toBe(0x3);
+    expect(exp.uqm_conv_get_secrets_lo()).toBe(0x7);
     expect(exp.uqm_conv_get_secrets_hi()).toBe(0x1);
   });
 

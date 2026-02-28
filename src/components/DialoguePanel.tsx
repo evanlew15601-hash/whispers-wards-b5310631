@@ -6,6 +6,8 @@ import { splitWrappedLinesIntoParagraphs, wrapTextLinesJs, wrapTextLinesUqm } fr
 import { isChoiceLocked, isChoiceLockedBySecrets } from '@/game/choiceLocks';
 import { useAudio } from '@/audio/useAudio';
 import { Eye, Flame, Leaf, Lock, Shield, Sparkles } from 'lucide-react';
+import CommPortrait from '@/components/CommPortrait';
+import { getPortraitById, getSpeakerPortrait } from '@/game/portraits';
 
 import type { ChoiceUiHint } from '@/game/engine/conversationEngine';
 
@@ -14,6 +16,8 @@ interface DialoguePanelProps {
   onChoice: (choice: DialogueChoice) => void;
   knownSecrets: string[];
   factions: Faction[];
+  playerPortraitId?: string;
+  playerName?: string;
   lockedChoices?: boolean[] | null;
   choiceUiHints?: ChoiceUiHint[] | null;
 }
@@ -50,7 +54,7 @@ const isUserTyping = () => {
   return el.isContentEditable;
 };
 
-const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, choiceUiHints }: DialoguePanelProps) => {
+const DialoguePanel = ({ node, onChoice, knownSecrets, factions, playerPortraitId, playerName, lockedChoices, choiceUiHints }: DialoguePanelProps) => {
   const { playSfx } = useAudio();
 
   const fullText = node.text;
@@ -67,6 +71,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
 
   const revealTimerRef = useRef<number | null>(null);
   const nudgeTimerRef = useRef<number | null>(null);
+  const lastVoiceAtRef = useRef(0);
 
   const visibleText = useMemo(() => fullText.slice(0, revealedChars), [fullText, revealedChars]);
 
@@ -114,9 +119,29 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
     const steps = Math.max(1, Math.ceil(durationMs / REVEAL_TICK_MS));
     const stepChars = Math.max(1, Math.ceil(fullText.length / steps));
 
+    const voiceId = node.speakerFaction === 'iron-pact'
+      ? 'voice.iron'
+      : node.speakerFaction === 'verdant-court'
+        ? 'voice.verdant'
+        : node.speakerFaction === 'ember-throne'
+          ? 'voice.ember'
+          : 'voice.narrator';
+
+    lastVoiceAtRef.current = 0;
+
     revealTimerRef.current = window.setInterval(() => {
       setRevealedChars(prev => {
         const next = Math.min(fullText.length, prev + stepChars);
+
+        const chunk = fullText.slice(prev, next);
+        if (chunk && /[A-Za-z0-9]/.test(chunk)) {
+          const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          if (now - lastVoiceAtRef.current > 70) {
+            playSfx(voiceId);
+            lastVoiceAtRef.current = now;
+          }
+        }
+
         if (next >= fullText.length) {
           if (revealTimerRef.current != null) {
             window.clearInterval(revealTimerRef.current);
@@ -217,6 +242,8 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
   const aura = node.speakerFaction ? factionAuraVars[node.speakerFaction] ?? 'var(--gold-glow)' : 'var(--gold-glow)';
   const SpeakerIcon = node.speakerFaction ? factionIcons[node.speakerFaction] ?? Sparkles : Sparkles;
 
+  const portrait = useMemo(() => getSpeakerPortrait(node.speaker, node.speakerFaction), [node.speaker, node.speakerFaction]);
+
   const responseLabel = isRevealing ? 'Hold—listening…' : 'Your move';
 
   return (
@@ -262,27 +289,56 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
           )}
         </div>
 
-        {/* Dialogue text */}
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => isRevealing && skipReveal()}
-          onKeyDown={e => {
-            if (!isRevealing) return;
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              skipReveal();
-            }
-          }}
-          className="parchment-border group relative cursor-pointer rounded-sm bg-card/40 p-6 outline-none transition-colors hover:bg-card/55 focus-visible:ring-2 focus-visible:ring-primary/60"
-          style={{ ['--cc-aura' as any]: aura } as CSSProperties}
-        >
-          <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-sm">
-            <div className="cc-dialogue-aura absolute inset-0 opacity-70" />
-            <div className="cc-dialogue-grain absolute inset-0" />
+        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+          <div
+            className="parchment-border relative overflow-hidden rounded-sm bg-card/40 p-4"
+            style={{ ['--cc-aura' as any]: aura } as CSSProperties}
+          >
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-sm">
+              <div className="cc-dialogue-aura absolute inset-0 opacity-70" />
+              <div className="cc-dialogue-grain absolute inset-0" />
+              <div className="cc-comm-scanlines absolute inset-0" />
+            </div>
+
+            <div className="relative">
+              <div className="mb-2 font-display text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                Transmission
+              </div>
+
+              <div className="h-72">
+                <CommPortrait portrait={portrait} />
+              </div>
+
+              {node.speakerFaction && (
+                <div className="mt-3 text-[10px] font-display tracking-[0.2em] text-muted-foreground/70 uppercase">
+                  {node.speakerFaction.replace('-', ' ')}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="relative">
+          <div className="flex flex-col gap-6">
+            {/* Dialogue text */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => isRevealing && skipReveal()}
+              onKeyDown={e => {
+                if (!isRevealing) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  skipReveal();
+                }
+              }}
+              className="parchment-border group relative cursor-pointer rounded-sm bg-card/40 p-6 outline-none transition-colors hover:bg-card/55 focus-visible:ring-2 focus-visible:ring-primary/60"
+              style={{ ['--cc-aura' as any]: aura } as CSSProperties}
+            >
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-sm">
+                <div className="cc-dialogue-aura absolute inset-0 opacity-70" />
+                <div className="cc-dialogue-grain absolute inset-0" />
+              </div>
+
+              <div className="relative">
             {dialogueParagraphs.map((paragraphLines, i) => (
               <motion.p
                 key={i}
@@ -336,6 +392,7 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
 
               const lines = choiceLines[choice.id] ?? [choice.text];
               const hotkey = i < 9 ? String(i + 1) : null;
+              const playerPortraitSrc = playerPortraitId ? getPortraitById(playerPortraitId)?.src ?? null : null;
 
               const onSelect = () => {
                 if (locked) {
@@ -369,8 +426,17 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                 >
                   <div className="flex items-start gap-3">
                     {hotkey && (
-                      <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-border bg-card/60 font-display text-[10px] tracking-wider text-muted-foreground">
-                        {hotkey}
+                      <div className="relative mt-0.5 h-6 w-6 shrink-0 overflow-hidden rounded-sm border border-border bg-card/60">
+                        {playerPortraitSrc && (
+                          <img
+                            src={playerPortraitSrc}
+                            alt={playerName ?? 'You'}
+                            className="absolute inset-0 h-full w-full object-cover opacity-80"
+                          />
+                        )}
+                        <div className="relative flex h-full w-full items-center justify-center bg-background/15 font-display text-[10px] tracking-wider text-muted-foreground">
+                          {hotkey}
+                        </div>
                       </div>
                     )}
 
@@ -434,6 +500,8 @@ const DialoguePanel = ({ node, onChoice, knownSecrets, factions, lockedChoices, 
                 </motion.button>
               );
             })}
+          </div>
+        </div>
           </div>
         </div>
       </motion.div>

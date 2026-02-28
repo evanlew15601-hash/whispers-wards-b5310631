@@ -13,6 +13,11 @@ const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(ma
 
 const createInitialState = (): GameState => ({
   currentScene: 'title',
+  player: {
+    name: 'Envoy',
+    pronouns: 'they/them',
+    portraitId: 'envoy-default',
+  },
   factions: initialFactions.map(f => ({ ...f })),
   currentDialogue: null,
   events: initialEvents.map(e => ({ ...e })),

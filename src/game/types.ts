@@ -92,8 +92,15 @@ export interface SecondaryEncounter {
   expiresOnTurn: number;
 }
 
+export interface PlayerProfile {
+  name: string;
+  pronouns: 'they/them' | 'she/her' | 'he/him';
+  portraitId: string;
+}
+
 export interface GameState {
-  currentScene: 'title' | 'load' | 'game';
+  currentScene: 'title' | 'load' | 'create' | 'game';
+  player: PlayerProfile;
   factions: Faction[];
   currentDialogue: DialogueNode | null;
   events: GameEvent[];

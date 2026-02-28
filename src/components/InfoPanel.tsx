@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { DialogueNode, Faction, WorldState, SecondaryEncounter } from '@/game/types';
+import { DialogueNode, Faction, PlayerProfile, WorldState, SecondaryEncounter } from '@/game/types';
+import { getPortraitById } from '@/game/portraits';
 import { getLeadHintsForCurrentDialogue } from '@/game/leads';
 import WorldMap from '@/components/WorldMap';
 import { Compass, Eye, Swords } from 'lucide-react';
@@ -14,12 +15,13 @@ interface InfoPanelProps {
   world: WorldState;
   factions: Faction[];
   pendingEncounter: SecondaryEncounter | null;
+  player?: PlayerProfile;
   canAddressEncounter?: boolean;
   onAddressEncounter?: () => void;
 }
 
 const InfoPanel = (
-  { currentDialogue, knownSecrets, turnNumber, log, world, factions, pendingEncounter, canAddressEncounter = false, onAddressEncounter }: InfoPanelProps,
+  { currentDialogue, knownSecrets, turnNumber, log, world, factions, pendingEncounter, player, canAddressEncounter = false, onAddressEncounter }: InfoPanelProps,
 ) => {
   const encounterTurnsLeft = pendingEncounter ? pendingEncounter.expiresOnTurn - turnNumber : null;
   const leadHints = getLeadHintsForCurrentDialogue(currentDialogue, knownSecrets);
@@ -35,6 +37,37 @@ const InfoPanel = (
           Turn {turnNumber}
         </span>
       </div>
+
+      {player && (
+        <div className="parchment-border rounded-sm bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 overflow-hidden rounded-sm border border-border bg-secondary/40">
+              {getPortraitById(player.portraitId)?.src ? (
+                <img
+                  src={getPortraitById(player.portraitId)!.src}
+                  alt={player.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <span className="font-display text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                    {player.name.slice(0, 1)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <div className="font-display text-[10px] tracking-[0.25em] text-muted-foreground uppercase">
+                Envoy
+              </div>
+              <div className="truncate text-sm text-card-foreground">
+                {player.name} <span className="text-muted-foreground">({player.pronouns})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TabsList className="w-full">
         <TabsTrigger value="chronicle" className="flex-1 font-display text-xs tracking-[0.2em] uppercase">

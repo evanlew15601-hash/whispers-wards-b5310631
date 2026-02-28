@@ -41,6 +41,8 @@ function compileGraph(secretBitCapacity: number, choiceStrideBytes: number): Com
   for (const nodeId of nodeIds) {
     for (const c of dialogueTree[nodeId].choices) {
       if (c.revealsInfo) secrets.add(c.revealsInfo);
+      if (c.requiresAllSecrets) for (const s of c.requiresAllSecrets) secrets.add(s);
+      if (c.requiresAnySecrets) for (const s of c.requiresAnySecrets) secrets.add(s);
     }
   }
 
@@ -129,6 +131,16 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
         mem.setUint32(base + 18, revealHi >>> 0, true);
       }
 
+      const allMask = secretsMask64FromStrings(choice.requiresAllSecrets, graph.secretToBit);
+      const anyMask = secretsMask64FromStrings(choice.requiresAnySecrets, graph.secretToBit);
+
+      if (graph.choiceStrideBytes >= 38) {
+        mem.setUint32(base + 22, allMask.lo, true);
+        mem.setUint32(base + 26, allMask.hi, true);
+        mem.setUint32(base + 30, anyMask.lo, true);
+        mem.setUint32(base + 34, anyMask.hi, true);
+      }
+
       choiceCursor++;
     }
   }
@@ -140,11 +152,13 @@ function writeGraphToWasm(uqm: UqmWasmRuntime, graph: CompiledGraph) {
   }
 }
 
-function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string, number>): { lo: number; hi: number } {
+function secretsMask64FromStrings(secrets: readonly string[] | undefined, secretToBit: Map<string, number>): { lo: number; hi: number } {
   let lo = 0;
   let hi = 0;
 
-  for (const s of knownSecrets) {
+  if (!secrets) return { lo: 0, hi: 0 };
+
+  for (const s of secrets) {
     const bit = secretToBit.get(s);
     if (bit === undefined) continue;
 
@@ -153,6 +167,10 @@ function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string,
   }
 
   return { lo: lo >>> 0, hi: hi >>> 0 };
+}
+
+function secretsMask64FromKnown(knownSecrets: string[], secretToBit: Map<string, number>): { lo: number; hi: number } {
+  return secretsMask64FromStrings(knownSecrets, secretToBit);
 }
 
 function secretsFromMask(graph: CompiledGraph, lo: number, hi: number): Set<string> {
@@ -353,7 +371,7 @@ export function createUqmWasmConversationEngine(uqm: UqmWasmRuntime): Conversati
     typeof uqm.exports.uqm_conv_get_secrets_hi === 'function';
 
   const secretBitCapacity = supports64 ? 64 : 32;
-  const choiceStrideBytes = 22;
+  const choiceStrideBytes = 38;
 
   const graph = compileGraph(secretBitCapacity, choiceStrideBytes);
   writeGraphToWasm(uqm, graph);

@@ -125,6 +125,13 @@ const secondaryEncounterSchema = z
 
 export const persistedStateV2Schema = z
   .object({
+    player: z
+      .object({
+        name: z.string(),
+        pronouns: z.enum(['they/them', 'she/her', 'he/him']),
+        portraitId: z.string(),
+      })
+      .optional(),
     factions: z.array(factionSchema).optional(),
     events: z.array(gameEventSchema).optional(),
     knownSecrets: z.array(z.string()).optional(),
@@ -133,7 +140,7 @@ export const persistedStateV2Schema = z
     rngSeed: z.number().optional(),
     world: worldStateSchema.optional(),
     pendingEncounter: secondaryEncounterSchema.nullable().optional(),
-    currentScene: z.enum(['title', 'load', 'game']).optional(),
+    currentScene: z.enum(['title', 'load', 'create', 'game']).optional(),
     currentDialogueId: z.string().nullable(),
   })
   .passthrough();
@@ -398,6 +405,7 @@ export const saveGameToSlot = (slotId: number, state: GameState): boolean => {
   store.slots[String(id)] = {
     meta: createMeta(state),
     state: {
+      player: state.player as any,
       factions: state.factions as any,
       events: state.events as any,
       knownSecrets: state.knownSecrets,

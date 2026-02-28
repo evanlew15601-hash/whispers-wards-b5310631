@@ -1,4 +1,5 @@
 import TitleScreen from '@/components/TitleScreen';
+import CharacterCreatorScreen from '@/components/CharacterCreatorScreen';
 import GameScreen from '@/components/GameScreen';
 import LoadScreen from '@/components/LoadScreen';
 import { useGameState } from '@/game/useGameState';
@@ -10,6 +11,7 @@ const Index = () => {
     choiceLockedFlags,
     choiceUiHints,
     startGame,
+    confirmNewGame,
     openLoadScreen,
     backToTitle,
     saveToSlot,
@@ -42,6 +44,16 @@ const Index = () => {
         onDelete={deleteSlot}
         onBack={backToTitle}
         onNewGame={startGame}
+      />
+    );
+  }
+
+  if (state.currentScene === 'create') {
+    return (
+      <CharacterCreatorScreen
+        initialProfile={state.player}
+        onConfirm={confirmNewGame}
+        onBack={backToTitle}
       />
     );
   }

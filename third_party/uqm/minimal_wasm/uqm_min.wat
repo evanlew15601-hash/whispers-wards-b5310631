@@ -325,7 +325,7 @@
       (then (return (i32.const 0)))
     )
 
-    (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22)))
+    (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 38)))
   )
 
   (func (export "uqm_conv_choice_get_req_faction") (param $localIdx i32) (result i32)
@@ -399,6 +399,10 @@
     (local $absChoice i32)
     (local $totalChoices i32)
     (local $choicePtr i32)
+    (local $allLo i32)
+    (local $allHi i32)
+    (local $anyLo i32)
+    (local $anyHi i32)
     (local $reqFaction i32)
     (local $reqMin i32)
     (local $rep i32)
@@ -427,8 +431,36 @@
       (then (return (i32.const 1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 38))))
 
+    ;; Proof / secret gating.
+    (local.set $allLo (i32.load offset=22 (local.get $choicePtr)))
+    (local.set $allHi (i32.load offset=26 (local.get $choicePtr)))
+    (local.set $anyLo (i32.load offset=30 (local.get $choicePtr)))
+    (local.set $anyHi (i32.load offset=34 (local.get $choicePtr)))
+
+    ;; all secrets must be present.
+    (if (i32.ne (i32.and (global.get $conv_secrets_lo) (local.get $allLo)) (local.get $allLo))
+      (then (return (i32.const 1)))
+    )
+    (if (i32.ne (i32.and (global.get $conv_secrets_hi) (local.get $allHi)) (local.get $allHi))
+      (then (return (i32.const 1)))
+    )
+
+    ;; if anyLo/anyHi is non-zero, at least one must match.
+    (if (i32.ne (i32.or (local.get $anyLo) (local.get $anyHi)) (i32.const 0))
+      (then
+        (if
+          (i32.and
+            (i32.eqz (i32.and (global.get $conv_secrets_lo) (local.get $anyLo)))
+            (i32.eqz (i32.and (global.get $conv_secrets_hi) (local.get $anyHi)))
+          )
+          (then (return (i32.const 1)))
+        )
+      )
+    )
+
+    ;; Reputation gating.
     (local.set $reqFaction (i32.load16_s offset=10 (local.get $choicePtr)))
     (local.set $reqMin (i32.load16_s offset=12 (local.get $choicePtr)))
 
@@ -544,7 +576,7 @@
       (then (return (i32.const -1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 38))))
 
     (local.set $nextNode (i32.load (local.get $choicePtr)))
     (local.set $d0 (i32.load16_s offset=4 (local.get $choicePtr)))
@@ -606,7 +638,7 @@
       (then (return (i32.const -1)))
     )
 
-    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 22))))
+    (local.set $choicePtr (i32.add (local.get $choicesBase) (i32.mul (local.get $absChoice) (i32.const 38))))
 
     (local.set $nextNode (i32.load (local.get $choicePtr)))
     (local.set $d0 (i32.load16_s offset=4 (local.get $choicePtr)))

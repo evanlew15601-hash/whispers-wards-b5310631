@@ -163,6 +163,11 @@ describe('useGameState', () => {
 
     await act(async () => {
       result.current.startGame();
+      result.current.confirmNewGame({
+        name: 'Envoy',
+        pronouns: 'they/them',
+        portraitId: 'envoy-default',
+      });
     });
 
     await act(async () => {
@@ -180,6 +185,11 @@ describe('useGameState', () => {
 
     await act(async () => {
       result.current.startGame();
+      result.current.confirmNewGame({
+        name: 'Envoy',
+        pronouns: 'they/them',
+        portraitId: 'envoy-default',
+      });
     });
 
     await act(async () => {
