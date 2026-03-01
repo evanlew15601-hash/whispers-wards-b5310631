@@ -94,6 +94,8 @@ function validateWasm(bytes) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
+try {
+
 // Skip if output is newer than sources (but still validate it).
 try {
   const outStat = fs.statSync(outWasm);
@@ -220,3 +222,8 @@ if (!built) {
 }
 
 console.log(`[uqm-wasm] wrote ${path.relative(root, outWasm)}`);
+
+} catch (err) {
+  console.warn(`[uqm-wasm] WASM build failed (non-fatal): ${err?.message ?? err}`);
+  console.warn('[uqm-wasm] The app will use the TypeScript conversation engine fallback.');
+}
