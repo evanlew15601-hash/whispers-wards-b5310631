@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useMemo, useState } from 'react';
+import { forwardRef, useMemo, useState } from 'react';
 
 import heroImage from '@/assets/hero-throne.jpg';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ interface CharacterCreatorScreenProps {
   onBack: () => void;
 }
 
-const CharacterCreatorScreen = ({ initialProfile, onConfirm, onBack }: CharacterCreatorScreenProps) => {
+const CharacterCreatorScreen = forwardRef<HTMLDivElement, CharacterCreatorScreenProps>(({ initialProfile, onConfirm, onBack }, ref) => {
   const initialPortraitId = isPortraitId(initialProfile.portraitId)
     ? initialProfile.portraitId
     : playerPortraits[0]?.id ?? 'envoy-default';
@@ -28,7 +28,7 @@ const CharacterCreatorScreen = ({ initialProfile, onConfirm, onBack }: Character
   const canConfirm = name.trim().length > 0 && selectedPortrait;
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
+    <div ref={ref} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-6 py-10">
       <div
         className="absolute inset-0 bg-cover bg-center opacity-25"
         style={{ backgroundImage: `url(${heroImage})` }}
@@ -195,6 +195,8 @@ const CharacterCreatorScreen = ({ initialProfile, onConfirm, onBack }: Character
       </motion.div>
     </div>
   );
-};
+});
+
+CharacterCreatorScreen.displayName = 'CharacterCreatorScreen';
 
 export default CharacterCreatorScreen;
