@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import heroImage from '@/assets/hero-throne.jpg';
-import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { loadUqmWasmRuntime } from '@/game/engine/uqmWasmRuntime';
 import { Button } from '@/components/ui/button';
 import { useAmbience } from '@/audio/useAmbience';
@@ -13,7 +13,7 @@ interface TitleScreenProps {
   onContinue?: (slotId: number) => void;
 }
 
-const TitleScreen = forwardRef<HTMLDivElement, TitleScreenProps>(({ onStart, onLoad, slots = [], onContinue }, ref) => {
+const TitleScreen = ({ onStart, onLoad, slots = [], onContinue }: TitleScreenProps) => {
   useAmbience('title');
 
   const [uqmStatus, setUqmStatus] = useState<string>('Conversation core: loading…');
@@ -55,7 +55,7 @@ const TitleScreen = forwardRef<HTMLDivElement, TitleScreenProps>(({ onStart, onL
   }, []);
 
   return (
-    <div ref={ref} className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background">
       <div
         className="absolute inset-0 bg-cover bg-center opacity-30"
         style={{ backgroundImage: `url(${heroImage})` }}
@@ -165,8 +165,6 @@ const TitleScreen = forwardRef<HTMLDivElement, TitleScreenProps>(({ onStart, onL
       </motion.div>
     </div>
   );
-});
-
-TitleScreen.displayName = 'TitleScreen';
+};
 
 export default TitleScreen;
