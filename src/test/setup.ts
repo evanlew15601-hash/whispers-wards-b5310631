@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
-import { TextDecoder, TextEncoder } from "node:util";
+import { TextDecoder as NodeTextDecoder, TextEncoder as NodeTextEncoder } from "node:util";
 import { afterEach, vi } from "vitest";
 
 afterEach(() => {
@@ -11,11 +11,11 @@ afterEach(() => {
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 if (!globalThis.TextEncoder) {
-  globalThis.TextEncoder = TextEncoder;
+  globalThis.TextEncoder = NodeTextEncoder as unknown as typeof globalThis.TextEncoder;
 }
 
 if (!globalThis.TextDecoder) {
-  globalThis.TextDecoder = TextDecoder;
+  globalThis.TextDecoder = NodeTextDecoder as unknown as typeof globalThis.TextDecoder;
 }
 
 Object.defineProperty(window, "matchMedia", {
